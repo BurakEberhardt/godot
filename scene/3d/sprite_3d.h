@@ -67,6 +67,7 @@ private:
 
 	bool centered = true;
 	Point2 offset;
+	Point2 relative_offset;
 
 	bool hflip = false;
 	bool vflip = false;
@@ -124,6 +125,9 @@ public:
 
 	void set_offset(const Point2 &p_offset);
 	Point2 get_offset() const;
+
+	void set_relative_offset(const Point2 &p_offset);
+	Point2 get_relative_offset() const;
 
 	void set_flip_h(bool p_flip);
 	bool is_flipped_h() const;
