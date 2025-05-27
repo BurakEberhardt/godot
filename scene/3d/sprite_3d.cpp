@@ -332,6 +332,19 @@ Point2 SpriteBase3D::get_offset() const {
 	return offset;
 }
 
+void SpriteBase3D::set_relative_offset(const Point2 &p_offset) {
+	if (relative_offset == p_offset) {
+		return;
+	}
+
+	relative_offset = p_offset;
+	_queue_redraw();
+}
+
+Point2 SpriteBase3D::get_relative_offset() const {
+	return relative_offset;
+}
+
 void SpriteBase3D::set_flip_h(bool p_flip) {
 	if (hflip == p_flip) {
 		return;
@@ -616,6 +629,9 @@ void SpriteBase3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_offset", "offset"), &SpriteBase3D::set_offset);
 	ClassDB::bind_method(D_METHOD("get_offset"), &SpriteBase3D::get_offset);
 
+	ClassDB::bind_method(D_METHOD("set_relative_offset", "offset"), &SpriteBase3D::set_relative_offset);
+	ClassDB::bind_method(D_METHOD("get_relative_offset"), &SpriteBase3D::get_relative_offset);
+
 	ClassDB::bind_method(D_METHOD("set_flip_h", "flip_h"), &SpriteBase3D::set_flip_h);
 	ClassDB::bind_method(D_METHOD("is_flipped_h"), &SpriteBase3D::is_flipped_h);
 
@@ -663,6 +679,7 @@ void SpriteBase3D::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "centered"), "set_centered", "is_centered");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset", PROPERTY_HINT_NONE, "suffix:px"), "set_offset", "get_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "relative_offset", PROPERTY_HINT_NONE), "set_relative_offset", "get_relative_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "flip_h"), "set_flip_h", "is_flipped_h");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "flip_v"), "set_flip_v", "is_flipped_v");
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "modulate"), "set_modulate", "get_modulate");
@@ -802,6 +819,7 @@ void Sprite3D::_draw() {
 	Point2 frame_offset = Point2(frame % hframes, frame / hframes) * frame_size;
 
 	Point2 dst_offset = get_offset();
+	dst_offset += get_relative_offset() * frame_size;
 	if (is_centered()) {
 		dst_offset -= frame_size / 2.0f;
 	}
@@ -952,6 +970,7 @@ Rect2 Sprite3D::get_item_rect() const {
 	}
 
 	Point2 ofs = get_offset();
+	ofs += get_relative_offset() * s;
 	if (is_centered()) {
 		ofs -= s / 2;
 	}
@@ -1043,6 +1062,7 @@ void AnimatedSprite3D::_draw() {
 	src_rect.size = tsize;
 
 	Point2 ofs = get_offset();
+	ofs += get_relative_offset() * tsize;
 	if (is_centered()) {
 		ofs -= tsize / 2;
 	}
@@ -1306,6 +1326,7 @@ Rect2 AnimatedSprite3D::get_item_rect() const {
 	Size2 s = t->get_size();
 
 	Point2 ofs = get_offset();
+	ofs += get_relative_offset() * s;
 	if (is_centered()) {
 		ofs -= s / 2;
 	}
