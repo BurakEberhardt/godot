@@ -155,6 +155,13 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 		SWAP(uvs[1], uvs[2]);
 	}
 
+	Vector2 uv2s[4] = {
+		uvs[2],
+		uvs[3],
+		uvs[0],
+		uvs[1],
+	};
+
 	Vector3 normal;
 	int ax = get_axis();
 	normal[ax] = 1.0;
@@ -234,6 +241,9 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 
 		float v_uv[2] = { (float)uvs[i].x, (float)uvs[i].y };
 		memcpy(&attribute_write_buffer[i * attrib_stride + mesh_surface_offsets[RS::ARRAY_TEX_UV]], v_uv, 8);
+
+		float v_uv2[2] = { (float)uv2s[i].x, (float)uv2s[i].y };
+		memcpy(&attribute_write_buffer[i * attrib_stride + mesh_surface_offsets[RS::ARRAY_TEX_UV2]], v_uv2, 8);
 
 		float v_vertex[3] = { (float)vtx.x, (float)vtx.y, (float)vtx.z };
 
@@ -736,6 +746,7 @@ SpriteBase3D::SpriteBase3D() {
 	PackedFloat32Array mesh_tangents;
 	PackedColorArray mesh_colors;
 	PackedVector2Array mesh_uvs;
+	PackedVector2Array mesh_uv2s;
 	PackedInt32Array indices;
 
 	mesh_vertices.resize(4);
@@ -743,6 +754,7 @@ SpriteBase3D::SpriteBase3D() {
 	mesh_tangents.resize(16);
 	mesh_colors.resize(4);
 	mesh_uvs.resize(4);
+	mesh_uv2s.resize(4);
 
 	// Create basic mesh and store format information.
 	for (int i = 0; i < 4; i++) {
@@ -753,6 +765,7 @@ SpriteBase3D::SpriteBase3D() {
 		mesh_tangents.write[i * 4 + 3] = 1.0;
 		mesh_colors.write[i] = Color(1.0, 1.0, 1.0, 1.0);
 		mesh_uvs.write[i] = Vector2(0.0, 0.0);
+		mesh_uv2s.write[i] = Vector2(0.0, 0.0);
 		mesh_vertices.write[i] = Vector3(0.0, 0.0, 0.0);
 	}
 
@@ -771,6 +784,7 @@ SpriteBase3D::SpriteBase3D() {
 	mesh_array[RS::ARRAY_TANGENT] = mesh_tangents;
 	mesh_array[RS::ARRAY_COLOR] = mesh_colors;
 	mesh_array[RS::ARRAY_TEX_UV] = mesh_uvs;
+	mesh_array[RS::ARRAY_TEX_UV2] = mesh_uv2s;
 	mesh_array[RS::ARRAY_INDEX] = indices;
 
 	RS::SurfaceData sd;
