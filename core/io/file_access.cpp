@@ -81,12 +81,12 @@ Ref<FileAccess> FileAccess::create_for_path(const String &p_path) {
 Ref<FileAccess> FileAccess::create_temp(int p_mode_flags, const String &p_prefix, const String &p_extension, bool p_keep, Error *r_error) {
 	const String ERROR_COMMON_PREFIX = "Error while creating temporary file";
 
-	if (!p_prefix.is_valid_filename()) {
+	if (!p_prefix.is_empty() && !p_prefix.is_valid_filename()) {
 		*r_error = ERR_FILE_BAD_PATH;
 		ERR_FAIL_V_MSG(Ref<FileAccess>(), vformat(R"(%s: "%s" is not a valid prefix.)", ERROR_COMMON_PREFIX, p_prefix));
 	}
 
-	if (!p_extension.is_valid_filename()) {
+	if (!p_extension.is_empty() && !p_extension.is_valid_filename()) {
 		*r_error = ERR_FILE_BAD_PATH;
 		ERR_FAIL_V_MSG(Ref<FileAccess>(), vformat(R"(%s: "%s" is not a valid extension.)", ERROR_COMMON_PREFIX, p_extension));
 	}
@@ -159,7 +159,7 @@ Ref<FileAccess> FileAccess::open(const String &p_path, int p_mode_flags, Error *
 	//try packed data first
 
 	Ref<FileAccess> ret;
-	if (!(p_mode_flags & WRITE) && PackedData::get_singleton() && !PackedData::get_singleton()->is_disabled()) {
+	if (!(p_mode_flags & WRITE) && !(p_mode_flags & SKIP_PACK) && PackedData::get_singleton() && !PackedData::get_singleton()->is_disabled()) {
 		ret = PackedData::get_singleton()->try_open_path(p_path);
 		if (ret.is_valid()) {
 			if (r_error) {
@@ -170,7 +170,7 @@ Ref<FileAccess> FileAccess::open(const String &p_path, int p_mode_flags, Error *
 	}
 
 	ret = create_for_path(p_path);
-	Error err = ret->open_internal(p_path, p_mode_flags);
+	Error err = ret->open_internal(p_path, p_mode_flags & ~SKIP_PACK);
 
 	if (r_error) {
 		*r_error = err;

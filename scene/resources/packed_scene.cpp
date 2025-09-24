@@ -347,7 +347,24 @@ Node *SceneState::instantiate(GenEditState p_edit_state) const {
 							node->get_script_instance()->get_property_state(old_state);
 						}
 
-						node->set(snames[nprops[j].name], props[nprops[j].value], &valid);
+#ifdef TOOLS_ENABLED
+						const Ref<Script> value_as_script = props[nprops[j].value];
+						// It is possible that the user changed an existing script to abstract after it was attached to a node.
+						// When this happens, the user needs to fix it. See https://github.com/godotengine/godot/issues/109171
+						if (value_as_script.is_valid() && value_as_script->is_abstract()) {
+							const String global_class_name = value_as_script->get_global_name();
+							if (global_class_name.is_empty()) {
+								ERR_PRINT("Node \"" + snames[n.name] + "\" previously had a script, but that script is now abstract. Please assign a different script (right-click -> Attach Script...) or change the node to a different type (right-click -> Change Type...) to fix this, then re-save the scene.");
+							} else {
+								ERR_PRINT("Node \"" + snames[n.name] + "\" previously had a class of type \"" + global_class_name + "\", but that class is now abstract. Please assign a different script (right-click -> Attach Script...) or change the node to a different type (right-click -> Change Type...) to fix this, then re-save the scene.");
+							}
+							callable_mp((Object *)node, &Object::remove_meta).call_deferred(SceneStringName(_custom_type_script));
+						} else {
+							node->set_script(props[nprops[j].value]);
+						}
+#else
+						node->set_script(props[nprops[j].value]);
+#endif // TOOLS_ENABLED
 
 						//restore old state for new script, if exists
 						for (const Pair<StringName, Variant> &E : old_state) {
@@ -372,33 +389,36 @@ Node *SceneState::instantiate(GenEditState p_edit_state) const {
 
 						if (value.get_type() == Variant::ARRAY) {
 							Array set_array = value;
-							value = setup_resources_in_array(set_array, n, resources_local_to_sub_scene, node, snames[nprops[j].name], resources_local_to_scene, i, ret_nodes, p_edit_state);
-
 							bool is_get_valid = false;
 							Variant get_value = node->get(snames[nprops[j].name], &is_get_valid);
 
 							if (is_get_valid && get_value.get_type() == Variant::ARRAY) {
 								Array get_array = get_value;
-								if (!set_array.is_same_typed(get_array)) {
-									value = Array(set_array, get_array.get_typed_builtin(), get_array.get_typed_class_name(), get_array.get_typed_script());
+								if (set_array.is_same_typed(get_array)) {
+									set_array = set_array.duplicate();
+								} else {
+									set_array = Array(set_array, get_array.get_typed_builtin(), get_array.get_typed_class_name(), get_array.get_typed_script());
 								}
 							}
+
+							value = setup_resources_in_array(set_array, n, resources_local_to_sub_scene, node, snames[nprops[j].name], resources_local_to_scene, i, ret_nodes, p_edit_state);
 						}
 
 						if (value.get_type() == Variant::DICTIONARY) {
 							Dictionary set_dict = value;
-							value = setup_resources_in_dictionary(set_dict, n, resources_local_to_sub_scene, node, snames[nprops[j].name], resources_local_to_scene, i, ret_nodes, p_edit_state);
-
 							bool is_get_valid = false;
 							Variant get_value = node->get(snames[nprops[j].name], &is_get_valid);
 
 							if (is_get_valid && get_value.get_type() == Variant::DICTIONARY) {
 								Dictionary get_dict = get_value;
-								if (!set_dict.is_same_typed(get_dict)) {
-									value = Dictionary(set_dict, get_dict.get_typed_key_builtin(), get_dict.get_typed_key_class_name(), get_dict.get_typed_key_script(),
-											get_dict.get_typed_value_builtin(), get_dict.get_typed_value_class_name(), get_dict.get_typed_value_script());
+								if (set_dict.is_same_typed(get_dict)) {
+									set_dict = set_dict.duplicate();
+								} else {
+									set_dict = Dictionary(set_dict, get_dict.get_typed_key_builtin(), get_dict.get_typed_key_class_name(), get_dict.get_typed_key_script(), get_dict.get_typed_value_builtin(), get_dict.get_typed_value_class_name(), get_dict.get_typed_value_script());
 								}
 							}
+
+							value = setup_resources_in_dictionary(set_dict, n, resources_local_to_sub_scene, node, snames[nprops[j].name], resources_local_to_scene, i, ret_nodes, p_edit_state);
 						}
 
 						bool set_valid = true;
@@ -729,7 +749,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Has
 
 	// save the child instantiated scenes that are chosen as editable, so they can be restored
 	// upon load back
-	if (p_node != p_owner && !p_node->get_scene_file_path().is_empty() && p_owner->is_editable_instance(p_node)) {
+	if (p_node != p_owner && p_node->is_instance() && p_owner->is_editable_instance(p_node)) {
 		editable_instances.push_back(p_owner->get_path_to(p_node));
 		// Node is the root of an editable instance.
 		is_editable_instance = true;
@@ -763,7 +783,7 @@ Error SceneState::_parse_node(Node *p_owner, Node *p_node, int p_parent_idx, Has
 	bool instantiated_by_owner = false;
 	Vector<SceneState::PackState> states_stack = PropertyUtils::get_node_states_stack(p_node, p_owner, &instantiated_by_owner);
 
-	if (!p_node->get_scene_file_path().is_empty() && p_node->get_owner() == p_owner && instantiated_by_owner) {
+	if (p_node->is_instance() && p_node->get_owner() == p_owner && instantiated_by_owner) {
 		if (p_node->get_scene_instance_load_placeholder()) {
 			//it's a placeholder, use the placeholder path
 			nd.instance = _vm_get_variant(p_node->get_scene_file_path(), variant_map);
@@ -1103,7 +1123,7 @@ Error SceneState::_parse_connections(Node *p_owner, Node *p_node, HashMap<String
 
 			ERR_CONTINUE(!common_parent);
 
-			if (common_parent != p_owner && common_parent->get_scene_file_path().is_empty()) {
+			if (common_parent != p_owner && !common_parent->is_instance()) {
 				common_parent = common_parent->get_owner();
 			}
 
@@ -1163,8 +1183,7 @@ Error SceneState::_parse_connections(Node *p_owner, Node *p_node, HashMap<String
 
 						nl = nullptr;
 					} else {
-						if (!nl->get_scene_file_path().is_empty()) {
-							//is an instance
+						if (nl->is_instance()) {
 							Ref<SceneState> state = nl->get_scene_instance_state();
 							if (state.is_valid()) {
 								int from_node = state->find_node_by_path(nl->get_path_to(p_node));

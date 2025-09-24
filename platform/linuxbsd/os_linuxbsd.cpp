@@ -32,6 +32,9 @@
 
 #include "core/io/certs_compressed.gen.h"
 #include "core/io/dir_access.h"
+#ifdef SDL_ENABLED
+#include "drivers/sdl/joypad_sdl.h"
+#endif
 #include "main/main.h"
 #include "servers/display_server.h"
 #include "servers/rendering_server.h"
@@ -158,8 +161,13 @@ void OS_LinuxBSD::initialize() {
 }
 
 void OS_LinuxBSD::initialize_joypads() {
-#ifdef JOYDEV_ENABLED
-	joypad = memnew(JoypadLinux(Input::get_singleton()));
+#ifdef SDL_ENABLED
+	joypad_sdl = memnew(JoypadSDL());
+	if (joypad_sdl->initialize() != OK) {
+		ERR_PRINT("Couldn't initialize SDL joypad input driver.");
+		memdelete(joypad_sdl);
+		joypad_sdl = nullptr;
+	}
 #endif
 }
 
@@ -202,7 +210,7 @@ String OS_LinuxBSD::get_processor_name() const {
 	while (!f->eof_reached()) {
 		const String line = f->get_line();
 		if (line.to_lower().contains("model name")) {
-			return line.split(":")[1].strip_edges();
+			return line.get_slicec(':', 1).strip_edges();
 		}
 	}
 #endif
@@ -241,9 +249,9 @@ void OS_LinuxBSD::finalize() {
 	driver_alsamidi.close();
 #endif
 
-#ifdef JOYDEV_ENABLED
-	if (joypad) {
-		memdelete(joypad);
+#ifdef SDL_ENABLED
+	if (joypad_sdl) {
+		memdelete(joypad_sdl);
 	}
 #endif
 }
@@ -287,7 +295,7 @@ String OS_LinuxBSD::get_systemd_os_release_info_value(const String &key) const {
 		while (!f->eof_reached()) {
 			const String line = f->get_line();
 			if (line.contains(key)) {
-				String value = line.split("=")[1].strip_edges();
+				String value = line.get_slicec('=', 1).strip_edges();
 				value = value.trim_prefix("\"");
 				return value.trim_suffix("\"");
 			}
@@ -973,8 +981,10 @@ void OS_LinuxBSD::run() {
 
 	while (true) {
 		DisplayServer::get_singleton()->process_events(); // get rid of pending events
-#ifdef JOYDEV_ENABLED
-		joypad->process_joypads();
+#ifdef SDL_ENABLED
+		if (joypad_sdl) {
+			joypad_sdl->process_events();
+		}
 #endif
 		if (Main::iteration()) {
 			break;

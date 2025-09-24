@@ -35,8 +35,8 @@
 #include "modules/modules_enabled.gen.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/editor_paths.h"
-#include "editor/editor_settings.h"
+#include "editor/file_system/editor_paths.h"
+#include "editor/settings/editor_settings.h"
 #endif // TOOLS_ENABLED
 
 #include "tests/core/config/test_project_settings.h"
@@ -190,6 +190,7 @@
 #include "tests/scene/test_navigation_obstacle_2d.h"
 #include "tests/scene/test_navigation_region_2d.h"
 #include "tests/servers/test_navigation_server_2d.h"
+#include "tests/servers/test_triangle2.h"
 #endif // MODULE_NAVIGATION_2D_ENABLED
 
 #ifdef MODULE_NAVIGATION_3D_ENABLED

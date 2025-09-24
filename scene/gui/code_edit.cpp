@@ -70,28 +70,9 @@ void CodeEdit::_notification(int p_what) {
 
 		case NOTIFICATION_DRAW: {
 			RID ci = get_canvas_item();
-			const Size2 size = get_size();
 			const bool caret_visible = is_caret_visible();
 			const bool rtl = is_layout_rtl();
 			const int row_height = get_line_height();
-
-			if (line_length_guideline_columns.size() > 0) {
-				const int xmargin_beg = theme_cache.style_normal->get_margin(SIDE_LEFT) + get_total_gutter_width();
-				const int xmargin_end = size.width - theme_cache.style_normal->get_margin(SIDE_RIGHT) - (is_drawing_minimap() ? get_minimap_width() : 0);
-
-				for (int i = 0; i < line_length_guideline_columns.size(); i++) {
-					const int column_pos = theme_cache.font->get_string_size(String("0").repeat((int)line_length_guideline_columns[i]), HORIZONTAL_ALIGNMENT_LEFT, -1, theme_cache.font_size).x;
-					const int xoffset = xmargin_beg + column_pos - get_h_scroll();
-					if (xoffset > xmargin_beg && xoffset < xmargin_end) {
-						Color guideline_color = (i == 0) ? theme_cache.line_length_guideline_color : theme_cache.line_length_guideline_color * Color(1, 1, 1, 0.5);
-						if (rtl) {
-							RenderingServer::get_singleton()->canvas_item_add_line(ci, Point2(size.width - xoffset, 0), Point2(size.width - xoffset, size.height), guideline_color);
-							continue;
-						}
-						RenderingServer::get_singleton()->canvas_item_add_line(ci, Point2(xoffset, 0), Point2(xoffset, size.height), guideline_color);
-					}
-				}
-			}
 
 			if (caret_visible) {
 				const bool draw_code_completion = code_completion_active && !code_completion_options.is_empty();
@@ -277,6 +258,32 @@ void CodeEdit::_notification(int p_what) {
 		case NOTIFICATION_MOUSE_EXIT: {
 			symbol_tooltip_timer->stop();
 		} break;
+	}
+}
+
+void CodeEdit::_draw_guidelines() {
+	if (line_length_guideline_columns.is_empty()) {
+		return;
+	}
+
+	RID ci = get_canvas_item();
+	const Size2 size = get_size();
+	const bool rtl = is_layout_rtl();
+
+	const int xmargin_beg = theme_cache.style_normal->get_margin(SIDE_LEFT) + get_total_gutter_width();
+	const int xmargin_end = size.width - theme_cache.style_normal->get_margin(SIDE_RIGHT) - (is_drawing_minimap() ? get_minimap_width() : 0);
+
+	for (int i = 0; i < line_length_guideline_columns.size(); i++) {
+		const int column_pos = theme_cache.font->get_string_size(String("0").repeat((int)line_length_guideline_columns[i]), HORIZONTAL_ALIGNMENT_LEFT, -1, theme_cache.font_size).x;
+		const int xoffset = xmargin_beg + column_pos - get_h_scroll();
+		if (xoffset > xmargin_beg && xoffset < xmargin_end) {
+			Color guideline_color = (i == 0) ? theme_cache.line_length_guideline_color : theme_cache.line_length_guideline_color * Color(1, 1, 1, 0.5);
+			if (rtl) {
+				RenderingServer::get_singleton()->canvas_item_add_line(ci, Point2(size.width - xoffset, 0), Point2(size.width - xoffset, size.height), guideline_color);
+				continue;
+			}
+			RenderingServer::get_singleton()->canvas_item_add_line(ci, Point2(xoffset, 0), Point2(xoffset, size.height), guideline_color);
+		}
 	}
 }
 
@@ -2929,7 +2936,7 @@ void CodeEdit::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "delimiter_comments"), "set_comment_delimiters", "get_comment_delimiters");
 
 	ADD_GROUP("Code Completion", "code_completion_");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "code_completion_enabled"), "set_code_completion_enabled", "is_code_completion_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "code_completion_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_code_completion_enabled", "is_code_completion_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "code_completion_prefixes"), "set_code_completion_prefixes", "get_code_completion_prefixes");
 
 	ADD_GROUP("Indentation", "indent_");
@@ -2939,7 +2946,7 @@ void CodeEdit::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "indent_automatic_prefixes"), "set_auto_indent_prefixes", "get_auto_indent_prefixes");
 
 	ADD_GROUP("Auto Brace Completion", "auto_brace_completion_");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_brace_completion_enabled"), "set_auto_brace_completion_enabled", "is_auto_brace_completion_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_brace_completion_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_auto_brace_completion_enabled", "is_auto_brace_completion_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_brace_completion_highlight_matching"), "set_highlight_matching_braces_enabled", "is_highlight_matching_braces_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "auto_brace_completion_pairs", PROPERTY_HINT_TYPE_STRING, "String;String"), "set_auto_brace_completion_pairs", "get_auto_brace_completion_pairs");
 

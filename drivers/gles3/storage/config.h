@@ -80,7 +80,9 @@ public:
 	bool astc_supported = false;
 	bool astc_hdr_supported = false;
 	bool astc_layered_supported = false;
+	bool astc_3d_supported = false;
 	bool srgb_framebuffer_supported = false;
+	bool unorm16_texture_supported = false;
 
 	bool force_vertex_shading = false;
 	bool specular_occlusion = false;
@@ -98,7 +100,6 @@ public:
 
 	// Adreno 3XX compatibility.
 	bool disable_particles_workaround = false; // Set to 'true' to disable 'GPUParticles'.
-	bool flip_xy_workaround = false;
 
 	// PowerVR GE 8320 workaround.
 	bool disable_transform_feedback_shader_cache = false;

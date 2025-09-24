@@ -1685,7 +1685,7 @@ Array RenderingServer::_get_array_from_surface(uint64_t p_format, Vector<uint8_t
 
 				Vector<int> arr;
 				arr.resize(p_index_len);
-				if (p_vertex_len <= (1 << 16)) {
+				if (p_vertex_len <= (1 << 16) && p_vertex_len > 0) {
 					int *w = arr.ptrw();
 
 					for (int j = 0; j < p_index_len; j++) {
@@ -1731,7 +1731,7 @@ Dictionary RenderingServer::mesh_surface_get_lods(RID p_mesh, int p_surface) con
 			const uint16_t *rptr = (const uint16_t *)r;
 			int *w = lods.ptrw();
 			for (uint32_t j = 0; j < lc; j++) {
-				w[j] = rptr[i];
+				w[j] = rptr[j];
 			}
 		} else {
 			uint32_t lc = sd.lods[i].index_data.size() / 4;
@@ -1740,7 +1740,7 @@ Dictionary RenderingServer::mesh_surface_get_lods(RID p_mesh, int p_surface) con
 			const uint32_t *rptr = (const uint32_t *)r;
 			int *w = lods.ptrw();
 			for (uint32_t j = 0; j < lc; j++) {
-				w[j] = rptr[i];
+				w[j] = rptr[j];
 			}
 		}
 
@@ -3305,6 +3305,7 @@ void RenderingServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("canvas_item_add_multiline", "item", "points", "colors", "width", "antialiased"), &RenderingServer::canvas_item_add_multiline, DEFVAL(-1.0), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("canvas_item_add_rect", "item", "rect", "color", "antialiased"), &RenderingServer::canvas_item_add_rect, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("canvas_item_add_circle", "item", "pos", "radius", "color", "antialiased"), &RenderingServer::canvas_item_add_circle, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("canvas_item_add_ellipse", "item", "pos", "major", "minor", "color", "antialiased"), &RenderingServer::canvas_item_add_ellipse, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("canvas_item_add_texture_rect", "item", "rect", "texture", "tile", "modulate", "transpose"), &RenderingServer::canvas_item_add_texture_rect, DEFVAL(false), DEFVAL(Color(1, 1, 1)), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("canvas_item_add_msdf_texture_rect_region", "item", "rect", "texture", "src_rect", "modulate", "outline_size", "px_range", "scale"), &RenderingServer::canvas_item_add_msdf_texture_rect_region, DEFVAL(Color(1, 1, 1)), DEFVAL(0), DEFVAL(1.0), DEFVAL(1.0));
 	ClassDB::bind_method(D_METHOD("canvas_item_add_lcd_texture_rect_region", "item", "rect", "texture", "src_rect", "modulate"), &RenderingServer::canvas_item_add_lcd_texture_rect_region);

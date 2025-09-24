@@ -967,6 +967,37 @@ void VisualShader::set_node_position(Type p_type, int p_id, const Vector2 &p_pos
 	g->nodes[p_id].position = p_position;
 }
 
+// Returns 0 if no embeds, 1 if external embeds, 2 if builtin embeds
+int VisualShader::has_node_embeds() const {
+	bool external_embeds = false;
+	for (int i = 0; i < TYPE_MAX; i++) {
+		for (const KeyValue<int, Node> &E : graph[i].nodes) {
+			List<PropertyInfo> props;
+			E.value.node->get_property_list(&props);
+			// For classes that inherit from VisualShaderNode, the class properties start at the 12th, and the last value is always 'script'
+			for (int j = 12; j < props.size() - 1; j++) {
+				// VisualShaderNodeCustom cannot have embeds
+				if (props.get(j).name == "VisualShaderNodeCustom") {
+					break;
+				}
+				// Ref<Resource> properties get classed as type Variant::Object
+				if (props.get(j).type == Variant::OBJECT) {
+					Ref<Resource> res = E.value.node->get(props.get(j).name);
+					if (res.is_valid()) {
+						if (res->is_built_in()) {
+							return 2;
+						} else {
+							external_embeds = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return external_embeds;
+}
+
 Vector2 VisualShader::get_node_position(Type p_type, int p_id) const {
 	ERR_FAIL_INDEX_V(p_type, TYPE_MAX, Vector2());
 	const Graph *g = &graph[p_type];
@@ -1465,6 +1496,17 @@ Shader::Mode VisualShader::get_mode() const {
 bool VisualShader::is_text_shader() const {
 	return false;
 }
+
+#ifndef DISABLE_DEPRECATED
+void VisualShader::set_graph_offset(const Vector2 &p_offset) {
+	WARN_DEPRECATED_MSG("graph_offset property is deprecated. Setting it has no effect.");
+}
+
+Vector2 VisualShader::get_graph_offset() const {
+	WARN_DEPRECATED_MSG("graph_offset property is deprecated. Getting it always returns Vector2().");
+	return Vector2();
+}
+#endif
 
 String VisualShader::generate_preview_shader(Type p_type, int p_node, int p_port, Vector<DefaultTextureParam> &default_tex_params) const {
 	Ref<VisualShaderNode> node = get_node(p_type, p_node);
@@ -1974,11 +2016,8 @@ void VisualShader::_get_property_list(List<PropertyInfo> *p_list) const {
 	const Vector<ShaderLanguage::ModeInfo> &smodes = ShaderTypes::get_singleton()->get_stencil_modes(RenderingServer::ShaderMode(shader_mode));
 
 	if (smodes.size() > 0) {
-		p_list->push_back(PropertyInfo(Variant::BOOL, vformat("%s/%s", PNAME("stencil"), PNAME("enabled"))));
-
-		uint32_t stencil_prop_usage = stencil_enabled ? PROPERTY_USAGE_DEFAULT : PROPERTY_USAGE_STORAGE;
-
-		p_list->push_back(PropertyInfo(Variant::INT, vformat("%s/%s", PNAME("stencil"), PNAME("reference")), PROPERTY_HINT_RANGE, "0,255,1", stencil_prop_usage));
+		p_list->push_back(PropertyInfo(Variant::BOOL, vformat("%s/%s", PNAME("stencil"), PNAME("enabled")), PROPERTY_HINT_GROUP_ENABLE));
+		p_list->push_back(PropertyInfo(Variant::INT, vformat("%s/%s", PNAME("stencil"), PNAME("reference")), PROPERTY_HINT_RANGE, "0,255,1"));
 
 		HashMap<String, String> stencil_enums;
 		HashSet<String> stencil_toggles;
@@ -2002,11 +2041,11 @@ void VisualShader::_get_property_list(List<PropertyInfo> *p_list) const {
 		}
 
 		for (const KeyValue<String, String> &E : stencil_enums) {
-			p_list->push_back(PropertyInfo(Variant::INT, vformat("%s/%s", PNAME("stencil_modes"), E.key), PROPERTY_HINT_ENUM, E.value, stencil_prop_usage));
+			p_list->push_back(PropertyInfo(Variant::INT, vformat("%s/%s", PNAME("stencil_modes"), E.key), PROPERTY_HINT_ENUM, E.value));
 		}
 
 		for (const String &E : stencil_toggles) {
-			p_list->push_back(PropertyInfo(Variant::BOOL, vformat("%s/%s", PNAME("stencil_flags"), E), PROPERTY_HINT_NONE, "", stencil_prop_usage));
+			p_list->push_back(PropertyInfo(Variant::BOOL, vformat("%s/%s", PNAME("stencil_flags"), E)));
 		}
 	}
 
@@ -3154,6 +3193,12 @@ void VisualShader::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("_update_shader"), &VisualShader::_update_shader);
 
+#ifndef DISABLE_DEPRECATED
+	ClassDB::bind_method(D_METHOD("set_graph_offset", "offset"), &VisualShader::set_graph_offset);
+	ClassDB::bind_method(D_METHOD("get_graph_offset"), &VisualShader::get_graph_offset);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "graph_offset", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE), "set_graph_offset", "get_graph_offset");
+#endif
+
 	ADD_PROPERTY_DEFAULT("code", ""); // Inherited from Shader, prevents showing default code as override in docs.
 
 	BIND_ENUM_CONSTANT(TYPE_VERTEX);
@@ -3641,6 +3686,9 @@ String VisualShaderNodeInput::generate_code(Shader::Mode p_mode, VisualShader::T
 				case PORT_TYPE_SCALAR_INT: {
 					code = "	" + p_output_vars[0] + " = 0;\n";
 				} break;
+				case PORT_TYPE_SCALAR_UINT: {
+					code = "	" + p_output_vars[0] + " = 0u;\n";
+				} break;
 				case PORT_TYPE_VECTOR_2D: {
 					code = "	" + p_output_vars[0] + " = vec2(0.0);\n";
 				} break;
@@ -3652,6 +3700,9 @@ String VisualShaderNodeInput::generate_code(Shader::Mode p_mode, VisualShader::T
 				} break;
 				case PORT_TYPE_BOOLEAN: {
 					code = "	" + p_output_vars[0] + " = false;\n";
+				} break;
+				case PORT_TYPE_TRANSFORM: {
+					code = "	" + p_output_vars[0] + " = mat4(1.0);\n";
 				} break;
 				default:
 					break;
@@ -4131,8 +4182,6 @@ const VisualShaderNodeOutput::Port VisualShaderNodeOutput::ports[] = {
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_VECTOR_3D, "Normal Map", "NORMAL_MAP" },
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_SCALAR, "Normal Map Depth", "NORMAL_MAP_DEPTH" },
 
-	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_VECTOR_3D, "Bent Normal Map", "BENT_NORMAL_MAP" },
-
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_SCALAR, "Rim", "RIM" },
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_SCALAR, "Rim Tint", "RIM_TINT" },
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_SCALAR, "Clearcoat", "CLEARCOAT" },
@@ -4148,6 +4197,7 @@ const VisualShaderNodeOutput::Port VisualShaderNodeOutput::ports[] = {
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_VECTOR_2D, "Alpha UV", "ALPHA_TEXTURE_COORDINATE" },
 
 	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_SCALAR, "Depth", "DEPTH" },
+	{ Shader::MODE_SPATIAL, VisualShader::TYPE_FRAGMENT, VisualShaderNode::PORT_TYPE_VECTOR_3D, "Bent Normal Map", "BENT_NORMAL_MAP" },
 
 	////////////////////////////////////////////////////////////////////////
 	// Spatial, Light.
@@ -4782,8 +4832,7 @@ void VisualShaderNodeGroupBase::remove_input_port(int p_id) {
 	int count = 0;
 	int index = 0;
 	for (int i = 0; i < inputs_strings.size(); i++) {
-		Vector<String> arr = inputs_strings[i].split(",");
-		if (arr[0].to_int() == p_id) {
+		if (inputs_strings[i].get_slicec(',', 0).to_int() == p_id) {
 			count = inputs_strings[i].size();
 			break;
 		}
@@ -4795,7 +4844,7 @@ void VisualShaderNodeGroupBase::remove_input_port(int p_id) {
 	inputs = inputs.substr(0, index);
 
 	for (int i = p_id; i < inputs_strings.size(); i++) {
-		inputs += inputs_strings[i].replace_first(inputs_strings[i].split(",")[0], itos(i)) + ";";
+		inputs += inputs_strings[i].replace_first(inputs_strings[i].get_slicec(',', 0), itos(i)) + ";";
 	}
 
 	_apply_port_changes();
@@ -4857,8 +4906,7 @@ void VisualShaderNodeGroupBase::remove_output_port(int p_id) {
 	int count = 0;
 	int index = 0;
 	for (int i = 0; i < outputs_strings.size(); i++) {
-		Vector<String> arr = outputs_strings[i].split(",");
-		if (arr[0].to_int() == p_id) {
+		if (outputs_strings[i].get_slicec(',', 0).to_int() == p_id) {
 			count = outputs_strings[i].size();
 			break;
 		}
@@ -4870,7 +4918,7 @@ void VisualShaderNodeGroupBase::remove_output_port(int p_id) {
 	outputs = outputs.substr(0, index);
 
 	for (int i = p_id; i < outputs_strings.size(); i++) {
-		outputs += outputs_strings[i].replace_first(outputs_strings[i].split(",")[0], itos(i)) + ";";
+		outputs += outputs_strings[i].replace_first(outputs_strings[i].get_slicec(',', 0), itos(i)) + ";";
 	}
 
 	_apply_port_changes();

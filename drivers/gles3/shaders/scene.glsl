@@ -1022,12 +1022,6 @@ uniform highp mat4 world_transform;
 uniform highp uint instance_offset;
 uniform highp uint model_flags;
 
-/* clang-format off */
-
-#GLOBALS
-
-/* clang-format on */
-
 #define LIGHT_BAKE_DISABLED 0u
 #define LIGHT_BAKE_STATIC 1u
 #define LIGHT_BAKE_DYNAMIC 2u
@@ -1268,6 +1262,12 @@ layout(location = 0) out vec4 frag_color;
 
 #endif // !RENDER_MATERIAL
 
+/* clang-format off */
+
+#GLOBALS
+
+/* clang-format on */
+
 vec3 F0(float metallic, float specular, vec3 albedo) {
 	float dielectric = 0.16 * specular * specular;
 	// use albedo * metallic as colored specular reflectance at 0 angle for metallic materials;
@@ -1448,7 +1448,7 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, bool is_di
 		float cLdotH5 = SchlickFresnel(cLdotH);
 #endif
 		float Dr = D_GGX(ccNdotH, mix(0.001, 0.1, clearcoat_roughness));
-		float Gr = 0.25 / (cLdotH * cLdotH);
+		float Gr = 0.25 / (cLdotH * cLdotH + 1e-4);
 		float Fr = mix(.04, 1.0, cLdotH5);
 		float clearcoat_specular_brdf_NL = clearcoat * Gr * Fr * Dr * cNdotL;
 
@@ -2104,7 +2104,7 @@ void main() {
 								 c3 * lightmap_captures[6].rgb * (3.0 * wnormal.z * wnormal.z - 1.0) +
 								 c2 * lightmap_captures[7].rgb * wnormal.x * wnormal.z +
 								 c4 * lightmap_captures[8].rgb * (wnormal.x * wnormal.x - wnormal.y * wnormal.y)) *
-				scene_data.emissive_exposure_normalization;
+				scene_data.IBL_exposure_normalization;
 	}
 #else
 #ifdef USE_LIGHTMAP

@@ -32,6 +32,7 @@
 
 #include "editor/debugger/editor_debugger_inspector.h"
 #include "editor/debugger/script_editor_debugger.h"
+#include "editor/editor_string_names.h"
 #include "scene/gui/button.h"
 #include "scene/gui/check_box.h"
 #include "scene/gui/line_edit.h"
@@ -99,6 +100,10 @@ void EditorExpressionEvaluator::_notification(int p_what) {
 			EditorDebuggerNode::get_singleton()->connect("breaked", callable_mp(this, &EditorExpressionEvaluator::_on_debugger_breaked));
 			EditorDebuggerNode::get_singleton()->connect("clear_execution", callable_mp(this, &EditorExpressionEvaluator::_on_debugger_clear_execution));
 		} break;
+		case NOTIFICATION_THEME_CHANGED: {
+			expression_input->add_theme_font_override(SceneStringName(font), get_theme_font(SNAME("expression"), EditorStringName(EditorFonts)));
+			expression_input->add_theme_font_size_override(SceneStringName(font_size), get_theme_font_size(SNAME("expression_size"), EditorStringName(EditorFonts)));
+		} break;
 	}
 }
 
@@ -111,7 +116,7 @@ EditorExpressionEvaluator::EditorExpressionEvaluator() {
 	expression_input = memnew(LineEdit);
 	expression_input->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	expression_input->set_placeholder(TTR("Expression to evaluate"));
-	expression_input->set_accessibility_name(TTRC("Expression"));
+	expression_input->set_accessibility_name(TTRC("Expression to evaluate"));
 	expression_input->set_clear_button_enabled(true);
 	expression_input->connect(SceneStringName(text_submitted), callable_mp(this, &EditorExpressionEvaluator::_evaluate).unbind(1));
 	expression_input->connect(SceneStringName(text_changed), callable_mp(this, &EditorExpressionEvaluator::_on_expression_input_changed));

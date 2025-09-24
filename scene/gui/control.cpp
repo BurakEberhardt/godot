@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "control.h"
+#include "control.compat.inc"
 
 #include "container.h"
 #include "core/config/project_settings.h"
@@ -45,7 +46,7 @@
 #include "servers/text_server.h"
 
 #ifdef TOOLS_ENABLED
-#include "editor/plugins/control_editor_plugin.h"
+#include "editor/scene/gui/control_editor_plugin.h"
 #endif // TOOLS_ENABLED
 
 // Editor plugin interoperability.
@@ -2315,12 +2316,12 @@ void Control::_propagate_focus_behavior_recursive_recursively(bool p_enabled, bo
 	}
 }
 
-bool Control::has_focus() const {
+bool Control::has_focus(bool p_ignore_hidden_focus) const {
 	ERR_READ_THREAD_GUARD_V(false);
-	return is_inside_tree() && get_viewport()->_gui_control_has_focus(this);
+	return is_inside_tree() && get_viewport()->_gui_control_has_focus(this, p_ignore_hidden_focus);
 }
 
-void Control::grab_focus() {
+void Control::grab_focus(bool p_hide_focus) {
 	ERR_MAIN_THREAD_GUARD;
 	ERR_FAIL_COND(!is_inside_tree());
 
@@ -2329,7 +2330,7 @@ void Control::grab_focus() {
 		return;
 	}
 
-	get_viewport()->_gui_control_grab_focus(this);
+	get_viewport()->_gui_control_grab_focus(this, p_hide_focus);
 }
 
 void Control::grab_click_focus() {
@@ -3519,7 +3520,8 @@ bool Control::is_layout_rtl() const {
 						String locale = OS::get_singleton()->get_locale();
 						data.is_rtl = TS->is_locale_right_to_left(locale);
 					} else {
-						String locale = TranslationServer::get_singleton()->get_tool_locale();
+						const Ref<Translation> &t = TranslationServer::get_singleton()->get_translation_object(TranslationServer::get_singleton()->get_locale());
+						String locale = t.is_valid() ? t->get_locale() : TranslationServer::get_singleton()->get_fallback_locale();
 						data.is_rtl = TS->is_locale_right_to_left(locale);
 					}
 					return data.is_rtl;
@@ -3900,14 +3902,6 @@ void Control::_notification(int p_notification) {
 			RenderingServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), data.clip_contents);
 		} break;
 
-		case NOTIFICATION_MOUSE_ENTER: {
-			emit_signal(SceneStringName(mouse_entered));
-		} break;
-
-		case NOTIFICATION_MOUSE_EXIT: {
-			emit_signal(SceneStringName(mouse_exited));
-		} break;
-
 		case NOTIFICATION_FOCUS_ENTER: {
 			emit_signal(SceneStringName(focus_entered));
 			queue_redraw();
@@ -4009,8 +4003,8 @@ void Control::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_focus_mode_with_override"), &Control::get_focus_mode_with_override);
 	ClassDB::bind_method(D_METHOD("set_focus_behavior_recursive", "focus_behavior_recursive"), &Control::set_focus_behavior_recursive);
 	ClassDB::bind_method(D_METHOD("get_focus_behavior_recursive"), &Control::get_focus_behavior_recursive);
-	ClassDB::bind_method(D_METHOD("has_focus"), &Control::has_focus);
-	ClassDB::bind_method(D_METHOD("grab_focus"), &Control::grab_focus);
+	ClassDB::bind_method(D_METHOD("has_focus", "ignore_hidden_focus"), &Control::has_focus, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("grab_focus", "hide_focus"), &Control::grab_focus, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("release_focus"), &Control::release_focus);
 	ClassDB::bind_method(D_METHOD("find_prev_valid_focus"), &Control::find_prev_valid_focus);
 	ClassDB::bind_method(D_METHOD("find_next_valid_focus"), &Control::find_next_valid_focus);
@@ -4399,6 +4393,8 @@ void Control::_bind_methods() {
 }
 
 Control::Control() {
+	_define_ancestry(AncestralClass::CONTROL);
+
 	data.theme_owner = memnew(ThemeOwner(this));
 
 	set_physics_interpolation_mode(Node::PHYSICS_INTERPOLATION_MODE_OFF);

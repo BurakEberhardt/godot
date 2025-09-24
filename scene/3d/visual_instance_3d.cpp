@@ -88,9 +88,7 @@ void VisualInstance3D::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_TRANSFORM_CHANGED: {
-			// NOTIFICATION normally turned off for physics interpolated cases (via
-			// `notify_transform_when_fti_off`), however derived classes can still turn this back on,
-			// so always wrap with is_physics_interpolation_enabled().
+			// ToDo : Can we turn off notify transform for physics interpolated cases?
 			if (_is_vi_visible() && !(is_inside_tree() && get_tree()->is_physics_interpolation_enabled()) && !_is_using_identity_transform()) {
 				// Physics interpolation global off, always send.
 				RenderingServer::get_singleton()->instance_set_transform(instance, get_global_transform());
@@ -167,12 +165,6 @@ bool VisualInstance3D::is_sorting_use_aabb_center() const {
 	return sorting_use_aabb_center;
 }
 
-void VisualInstance3D::_validate_property(PropertyInfo &p_property) const {
-	if (p_property.name == "sorting_offset" || p_property.name == "sorting_use_aabb_center") {
-		p_property.usage = PROPERTY_USAGE_NONE;
-	}
-}
-
 void VisualInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_base", "base"), &VisualInstance3D::set_base);
 	ClassDB::bind_method(D_METHOD("get_base"), &VisualInstance3D::get_base);
@@ -190,8 +182,8 @@ void VisualInstance3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "layers", PROPERTY_HINT_LAYERS_3D_RENDER), "set_layer_mask", "get_layer_mask");
 
 	ADD_GROUP("Sorting", "sorting_");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sorting_offset"), "set_sorting_offset", "get_sorting_offset");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "sorting_use_aabb_center"), "set_sorting_use_aabb_center", "is_sorting_use_aabb_center");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sorting_offset", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE), "set_sorting_offset", "get_sorting_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "sorting_use_aabb_center", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE), "set_sorting_use_aabb_center", "is_sorting_use_aabb_center");
 }
 
 void VisualInstance3D::set_base(const RID &p_base) {
@@ -204,9 +196,11 @@ RID VisualInstance3D::get_base() const {
 }
 
 VisualInstance3D::VisualInstance3D() {
+	_define_ancestry(AncestralClass::VISUAL_INSTANCE_3D);
+
 	instance = RenderingServer::get_singleton()->instance_create();
 	RenderingServer::get_singleton()->instance_attach_object_instance_id(instance, get_instance_id());
-	_set_notify_transform_when_fti_off(true);
+	set_notify_transform(true);
 }
 
 VisualInstance3D::~VisualInstance3D() {
@@ -645,6 +639,7 @@ void GeometryInstance3D::_bind_methods() {
 }
 
 GeometryInstance3D::GeometryInstance3D() {
+	_define_ancestry(AncestralClass::GEOMETRY_INSTANCE_3D);
 }
 
 GeometryInstance3D::~GeometryInstance3D() {

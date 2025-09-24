@@ -33,8 +33,8 @@
 #include "core/object/script_language.h"
 #include "core/templates/safe_refcount.h"
 #include "editor/editor_data.h"
-#include "editor/editor_folding.h"
 #include "editor/plugins/editor_plugin.h"
+#include "editor/settings/editor_folding.h"
 
 typedef void (*EditorNodeInitCallback)();
 typedef void (*EditorPluginInitializeCallback)();
@@ -155,6 +155,7 @@ public:
 		SCENE_REDO,
 		SCENE_RELOAD_SAVED_SCENE,
 		SCENE_CLOSE,
+		SCENE_CLOSE_ALL,
 		SCENE_QUIT,
 
 		FILE_EXPORT_MESH_LIBRARY,
@@ -346,8 +347,6 @@ private:
 	PopupMenu *tool_menu = nullptr;
 	PopupMenu *export_as_menu = nullptr;
 	Button *export_button = nullptr;
-	Button *search_button = nullptr;
-	TextureProgressBar *audio_vu = nullptr;
 
 	Timer *screenshot_timer = nullptr;
 
@@ -376,6 +375,7 @@ private:
 	Node *_last_instantiated_scene = nullptr;
 
 	ConfirmationDialog *confirmation = nullptr;
+	bool stop_project_confirmation = false;
 	Button *confirmation_button = nullptr;
 	ConfirmationDialog *save_confirmation = nullptr;
 	ConfirmationDialog *import_confirmation = nullptr;
@@ -407,10 +407,8 @@ private:
 	EditorBuildProfileManager *build_profile_manager = nullptr;
 	EditorFileDialog *file_templates = nullptr;
 	EditorFileDialog *file_export_lib = nullptr;
-	EditorFileDialog *file_script = nullptr;
 	EditorFileDialog *file_android_build_source = nullptr;
 	EditorFileDialog *file_pack_zip = nullptr;
-	String current_path;
 	MenuButton *update_spinner = nullptr;
 
 	EditorMainScreen *editor_main_screen = nullptr;
@@ -450,7 +448,7 @@ private:
 	bool immediate_dialog_confirmed = false;
 	bool restoring_scenes = false;
 	bool settings_overrides_changed = false;
-	bool unsaved_cache = true;
+	bool unsaved_cache = false;
 
 	bool requested_first_scan = false;
 	bool waiting_for_first_scan = true;
@@ -462,7 +460,6 @@ private:
 	int current_menu_option = 0;
 
 	SubViewport *scene_root = nullptr; // Root of the scene being edited.
-	Object *current = nullptr;
 
 	Ref<Resource> saving_resource;
 	HashSet<Ref<Resource>> saving_resources_in_path;
@@ -477,8 +474,6 @@ private:
 	DynamicFontImportSettingsDialog *fontdata_import_settings = nullptr;
 	SceneImportSettingsDialog *scene_import_settings = nullptr;
 	AudioStreamImportSettingsDialog *audio_stream_import_settings = nullptr;
-
-	String import_reload_fn;
 
 	HashSet<String> textfile_extensions;
 	HashSet<String> other_file_extensions;
@@ -598,6 +593,7 @@ private:
 	void _discard_changes(const String &p_str = String());
 	void _scene_tab_closed(int p_tab);
 	void _cancel_close_scene_tab();
+	void _cancel_confirmation();
 
 	void _prepare_save_confirmation_popup();
 
@@ -771,6 +767,7 @@ public:
 
 	static bool immediate_confirmation_dialog(const String &p_text, const String &p_ok_text = TTR("Ok"), const String &p_cancel_text = TTR("Cancel"), uint32_t p_wrap_width = 0);
 
+	static bool is_cmdline_mode();
 	static void cleanup();
 
 	EditorPluginList *get_editor_plugins_force_input_forwarding() { return editor_plugins_force_input_forwarding; }
@@ -1017,6 +1014,8 @@ public:
 };
 
 class EditorPluginList : public Object {
+	GDSOFTCLASS(EditorPluginList, Object);
+
 private:
 	Vector<EditorPlugin *> plugins_list;
 

@@ -67,6 +67,8 @@ protected:
 	};
 
 public:
+	static constexpr AncestralClass static_ancestral_class = AncestralClass::NODE;
+
 	// N.B. Any enum stored as a bitfield should be specified as UNSIGNED to work around
 	// some compilers trying to store it as signed, and requiring 1 more bit than necessary.
 	enum ProcessMode : unsigned int {
@@ -500,6 +502,7 @@ public:
 	Node *find_parent(const String &p_pattern) const;
 
 	Window *get_window() const;
+	Window *get_non_popup_window() const;
 	Window *get_last_exclusive_window() const;
 
 	_FORCE_INLINE_ SceneTree *get_tree() const {
@@ -711,7 +714,7 @@ public:
 	void set_physics_interpolation_mode(PhysicsInterpolationMode p_mode);
 	PhysicsInterpolationMode get_physics_interpolation_mode() const { return data.physics_interpolation_mode; }
 	_FORCE_INLINE_ bool is_physics_interpolated() const { return data.physics_interpolated; }
-	_FORCE_INLINE_ bool is_physics_interpolated_and_enabled() const { return is_inside_tree() && get_tree()->is_physics_interpolation_enabled() && is_physics_interpolated(); }
+	_FORCE_INLINE_ bool is_physics_interpolated_and_enabled() const { return SceneTree::is_fti_enabled() && is_physics_interpolated(); }
 	void reset_physics_interpolation();
 
 	bool is_enabled() const;
@@ -817,6 +820,10 @@ public:
 	}
 	void set_thread_safe(const StringName &p_property, const Variant &p_value);
 	void notify_thread_safe(int p_notification);
+
+	/* HELPER */
+
+	bool is_instance() const { return !data.scene_file_path.is_empty(); }
 
 	// These inherited functions need proper multithread locking when overridden in Node.
 #ifdef DEBUG_ENABLED

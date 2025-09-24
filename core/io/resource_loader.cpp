@@ -174,7 +174,7 @@ Ref<Resource> ResourceFormatLoader::load(const String &p_path, const String &p_o
 		}
 	}
 
-	ERR_FAIL_V_MSG(Ref<Resource>(), vformat("Failed to load resource '%s'. ResourceFormatLoader::load was not implemented for this resource type.", p_path));
+	return Ref<Resource>();
 }
 
 void ResourceFormatLoader::get_dependencies(const String &p_path, List<String> *p_dependencies, bool p_add_types) {
@@ -1269,7 +1269,9 @@ String ResourceLoader::_path_remap(const String &p_path, bool *r_translation_rem
 		}
 
 		// Fallback to p_path if new_path does not exist.
-		if (!FileAccess::exists(new_path + ".import") && !FileAccess::exists(new_path)) {
+		if (!FileAccess::exists(new_path + ".import") &&
+				!FileAccess::exists(new_path + ".remap") &&
+				!FileAccess::exists(new_path)) {
 			WARN_PRINT(vformat("Translation remap '%s' does not exist. Falling back to '%s'.", new_path, p_path));
 			new_path = p_path;
 		}
