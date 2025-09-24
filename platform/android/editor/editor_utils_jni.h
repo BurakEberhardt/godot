@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  macos_terminal_logger.mm                                              */
+/*  editor_utils_jni.h                                                    */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,58 +28,10 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#import "macos_terminal_logger.h"
+#pragma once
 
-#ifdef MACOS_ENABLED
+#include <jni.h>
 
-#include <os/log.h>
-
-void MacOSTerminalLogger::log_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, bool p_editor_notify, ErrorType p_type, const Vector<Ref<ScriptBacktrace>> &p_script_backtraces) {
-	if (!should_log(true)) {
-		return;
-	}
-
-	const char *err_details;
-	if (p_rationale && p_rationale[0]) {
-		err_details = p_rationale;
-	} else {
-		err_details = p_code;
-	}
-
-	const char *bold_color;
-	const char *normal_color;
-	switch (p_type) {
-		case ERR_WARNING:
-			bold_color = "\E[1;33m";
-			normal_color = "\E[0;93m";
-			break;
-		case ERR_SCRIPT:
-			bold_color = "\E[1;35m";
-			normal_color = "\E[0;95m";
-			break;
-		case ERR_SHADER:
-			bold_color = "\E[1;36m";
-			normal_color = "\E[0;96m";
-			break;
-		case ERR_ERROR:
-		default:
-			bold_color = "\E[1;31m";
-			normal_color = "\E[0;91m";
-			break;
-	}
-
-	os_log_error(OS_LOG_DEFAULT,
-			"%{public}s: %{public}s\nat: %{public}s (%{public}s:%i)",
-			error_type_string(p_type), err_details, p_function, p_file, p_line);
-	logf_error("%s%s:%s %s\n", bold_color, error_type_string(p_type), normal_color, err_details);
-	logf_error("\E[0;90m%sat: %s (%s:%i)\E[0m\n", error_type_indent(p_type), p_function, p_file, p_line);
-
-	for (const Ref<ScriptBacktrace> &backtrace : p_script_backtraces) {
-		if (!backtrace->is_empty()) {
-			os_log_error(OS_LOG_DEFAULT, "%{public}s", backtrace->format().utf8().get_data());
-			logf_error("\E[0;90m%s\E[0m\n", backtrace->format(strlen(error_type_indent(p_type))).utf8().get_data());
-		}
-	}
+extern "C" {
+JNIEXPORT void JNICALL Java_org_godotengine_godot_editor_utils_EditorUtils_runScene(JNIEnv *p_env, jclass, jstring p_scene, jobjectArray p_scene_args);
 }
-
-#endif // MACOS_ENABLED

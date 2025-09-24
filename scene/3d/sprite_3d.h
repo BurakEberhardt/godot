@@ -98,6 +98,8 @@ private:
 
 	void _propagate_color_changed();
 
+	Ref<Shader> custom_shader;
+
 protected:
 	Color _get_color_accum();
 	void _notification(int p_what);
@@ -120,6 +122,9 @@ protected:
 	void _queue_redraw();
 
 public:
+	void set_custom_shader(const Ref<Shader> &p_shader);
+	Ref<Shader> get_custom_shader() const;
+
 	void set_centered(bool p_center);
 	bool is_centered() const;
 

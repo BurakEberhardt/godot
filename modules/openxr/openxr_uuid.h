@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  macos_terminal_logger.h                                               */
+/*  openxr_uuid.h                                                         */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -30,13 +30,23 @@
 
 #pragma once
 
-#ifdef MACOS_ENABLED
+// Godot helper functions for OpenXR XrUuidExt data type
+#include "core/templates/hashfuncs.h"
 
-#include "core/io/logger.h"
+#include <openxr/openxr.h>
 
-class MacOSTerminalLogger : public StdLogger {
-public:
-	virtual void log_error(const char *p_function, const char *p_file, int p_line, const char *p_code, const char *p_rationale, bool p_editor_notify = false, ErrorType p_type = ERR_ERROR, const Vector<Ref<ScriptBacktrace>> &p_script_backtraces = {}) override;
+struct HashMapHasherXrUuidEXT {
+	static _FORCE_INLINE_ uint32_t hash(const XrUuidEXT &p_uuid) { return hash_murmur3_buffer(p_uuid.data, XR_UUID_SIZE_EXT); }
 };
 
-#endif // MACOS_ENABLED
+template <>
+struct HashMapComparatorDefault<XrUuidEXT> {
+	static bool compare(const XrUuidEXT &p_lhs, const XrUuidEXT &p_rhs) {
+		for (int i = 0; i < XR_UUID_SIZE_EXT; i++) {
+			if (p_lhs.data[i] != p_rhs.data[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+};

@@ -299,7 +299,10 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 	}
 
 	RID shader_rid;
-	StandardMaterial3D::get_material_for_2d(get_draw_flag(FLAG_SHADED), mat_transparency, get_draw_flag(FLAG_DOUBLE_SIDED), get_billboard_mode() == StandardMaterial3D::BILLBOARD_ENABLED, get_billboard_mode() == StandardMaterial3D::BILLBOARD_FIXED_Y, false, get_draw_flag(FLAG_DISABLE_DEPTH_TEST), get_draw_flag(FLAG_FIXED_SIZE), get_texture_filter(), alpha_antialiasing_mode, &shader_rid);
+	if(custom_shader.is_valid())
+		shader_rid = custom_shader->get_rid();
+	else
+		StandardMaterial3D::get_material_for_2d(get_draw_flag(FLAG_SHADED), mat_transparency, get_draw_flag(FLAG_DOUBLE_SIDED), get_billboard_mode() == StandardMaterial3D::BILLBOARD_ENABLED, get_billboard_mode() == StandardMaterial3D::BILLBOARD_FIXED_Y, false, get_draw_flag(FLAG_DISABLE_DEPTH_TEST), get_draw_flag(FLAG_FIXED_SIZE), get_texture_filter(), alpha_antialiasing_mode, &shader_rid);
 
 	if (last_shader != shader_rid) {
 		RS::get_singleton()->material_set_shader(get_material(), shader_rid);
@@ -314,6 +317,15 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 		RS::get_singleton()->material_set_render_priority(get_material(), get_render_priority());
 		RS::get_singleton()->mesh_surface_set_material(mesh, 0, get_material());
 	}
+}
+
+void SpriteBase3D::set_custom_shader(const Ref<Shader> &p_shader) {
+	custom_shader = p_shader;
+	_queue_redraw();
+}
+
+Ref<Shader> SpriteBase3D::get_custom_shader() const {
+	return custom_shader;
 }
 
 void SpriteBase3D::set_centered(bool p_center) {
@@ -633,6 +645,9 @@ StandardMaterial3D::TextureFilter SpriteBase3D::get_texture_filter() const {
 }
 
 void SpriteBase3D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_custom_shader", "shader"), &SpriteBase3D::set_custom_shader);
+	ClassDB::bind_method(D_METHOD("get_custom_shader"), &SpriteBase3D::get_custom_shader);
+
 	ClassDB::bind_method(D_METHOD("set_centered", "centered"), &SpriteBase3D::set_centered);
 	ClassDB::bind_method(D_METHOD("is_centered"), &SpriteBase3D::is_centered);
 
@@ -687,6 +702,7 @@ void SpriteBase3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_item_rect"), &SpriteBase3D::get_item_rect);
 	ClassDB::bind_method(D_METHOD("generate_triangle_mesh"), &SpriteBase3D::generate_triangle_mesh);
 
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "custom_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), "set_custom_shader", "get_custom_shader");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "centered"), "set_centered", "is_centered");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset", PROPERTY_HINT_NONE, "suffix:px"), "set_offset", "get_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "relative_offset", PROPERTY_HINT_NONE), "set_relative_offset", "get_relative_offset");

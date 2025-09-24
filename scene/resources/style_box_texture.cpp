@@ -217,10 +217,10 @@ void StyleBoxTexture::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "texture_margin_bottom", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_texture_margin", "get_texture_margin", SIDE_BOTTOM);
 
 	ADD_GROUP("Expand Margins", "expand_margin_");
-	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_left", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_LEFT);
-	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_top", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_TOP);
-	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_right", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_RIGHT);
-	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_bottom", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_BOTTOM);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_left", PROPERTY_HINT_RANGE, "-2048,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_LEFT);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_top", PROPERTY_HINT_RANGE, "-2048,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_TOP);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_right", PROPERTY_HINT_RANGE, "-2048,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_RIGHT);
+	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_bottom", PROPERTY_HINT_RANGE, "-2048,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_BOTTOM);
 
 	ADD_GROUP("Axis Stretch", "axis_stretch_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "axis_stretch_horizontal", PROPERTY_HINT_ENUM, "Stretch,Tile,Tile Fit"), "set_h_axis_stretch_mode", "get_h_axis_stretch_mode");
