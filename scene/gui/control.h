@@ -213,6 +213,7 @@ private:
 		real_t rotation = 0.0;
 		Vector2 scale = Vector2(1, 1);
 		Vector2 pivot_offset;
+		Vector2 relative_pivot_offset;
 
 		Point2 pos_cache;
 		Size2 size_cache;
@@ -538,6 +539,8 @@ public:
 	real_t get_rotation_degrees() const;
 	void set_pivot_offset(const Vector2 &p_pivot);
 	Vector2 get_pivot_offset() const;
+	void set_relative_pivot_offset(const Vector2 &p_pivot);
+	Vector2 get_relative_pivot_offset() const;
 
 	void update_minimum_size();
 
