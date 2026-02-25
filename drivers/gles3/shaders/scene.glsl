@@ -180,8 +180,11 @@ struct SceneData {
 	highp mat4 inv_view_matrix;
 	highp mat4 view_matrix;
 
+	highp mat4 main_cam_view_matrix;
 	// Used for billboards to cast correct shadows.
-	highp mat4 main_cam_inv_view_matrix;
+    highp mat4 main_cam_inv_view_matrix;
+    highp mat4 main_cam_projection_matrix;
+    highp mat4 main_cam_inv_projection_matrix;
 
 	vec2 viewport_size;
 	vec2 screen_pixel_size;
@@ -1142,8 +1145,11 @@ struct SceneData {
 	highp mat4 inv_view_matrix;
 	highp mat4 view_matrix;
 
+	highp mat4 main_cam_view_matrix;
 	// Used for billboards to cast correct shadows.
-	highp mat4 main_cam_inv_view_matrix;
+    highp mat4 main_cam_inv_view_matrix;
+    highp mat4 main_cam_projection_matrix;
+    highp mat4 main_cam_inv_projection_matrix;
 
 	vec2 viewport_size;
 	vec2 screen_pixel_size;

@@ -1495,12 +1495,16 @@ void RasterizerSceneGLES3::_setup_environment(const RenderDataGLES3 *p_render_da
 	Projection correction;
 	correction.set_depth_correction(p_flip_y, true, false);
 	Projection projection = correction * p_render_data->cam_projection;
+
 	//store camera into ubo
 	GLES3::MaterialStorage::store_camera(projection, scene_state.data.projection_matrix);
 	GLES3::MaterialStorage::store_camera(projection.inverse(), scene_state.data.inv_projection_matrix);
 	GLES3::MaterialStorage::store_transform(p_render_data->cam_transform, scene_state.data.inv_view_matrix);
 	GLES3::MaterialStorage::store_transform(p_render_data->inv_cam_transform, scene_state.data.view_matrix);
+	GLES3::MaterialStorage::store_transform(p_render_data->main_cam_inv_transform, scene_state.data.main_cam_view_matrix);
 	GLES3::MaterialStorage::store_transform(p_render_data->main_cam_transform, scene_state.data.main_cam_inv_view_matrix);
+	GLES3::MaterialStorage::store_camera(correction * p_render_data->main_cam_projection, scene_state.data.main_cam_projection_matrix);
+	GLES3::MaterialStorage::store_camera(correction * p_render_data->main_cam_inv_projection, scene_state.data.main_cam_inv_projection_matrix);
 	scene_state.data.camera_visible_layers = p_render_data->camera_visible_layers;
 
 	if (p_render_data->view_count > 1) {
@@ -2058,7 +2062,7 @@ void RasterizerSceneGLES3::_render_shadows(const RenderDataGLES3 *p_render_data,
 	}
 }
 
-void RasterizerSceneGLES3::_render_shadow_pass(RID p_light, RID p_shadow_atlas, int p_pass, const PagedArray<RenderGeometryInstance *> &p_instances, float p_lod_distance_multiplier, float p_screen_mesh_lod_threshold, RenderingMethod::RenderInfo *p_render_info, const Size2i &p_viewport_size, const Transform3D &p_main_cam_transform) {
+void RasterizerSceneGLES3::_render_shadow_pass(RID p_light, RID p_shadow_atlas, int p_pass, const PagedArray<RenderGeometryInstance *> &p_instances, float p_lod_distance_multiplier, float p_screen_mesh_lod_threshold, RenderingMethod::RenderInfo *p_render_info, const Size2i &p_viewport_size, const Transform3D &p_main_cam_transform, const Projection &p_main_cam_projection) {
 	GLES3::LightStorage *light_storage = GLES3::LightStorage::get_singleton();
 
 	ERR_FAIL_COND(!light_storage->owns_light_instance(p_light));
@@ -2193,6 +2197,9 @@ void RasterizerSceneGLES3::_render_shadow_pass(RID p_light, RID p_shadow_atlas, 
 	render_data.z_near = 0.0;
 	render_data.lod_distance_multiplier = p_lod_distance_multiplier;
 	render_data.main_cam_transform = p_main_cam_transform;
+	render_data.main_cam_inv_transform = p_main_cam_transform.affine_inverse();
+	render_data.main_cam_projection = p_main_cam_projection;
+	render_data.main_cam_inv_projection = p_main_cam_projection.inverse();
 
 	render_data.instances = &p_instances;
 	render_data.render_info = p_render_info;
@@ -2310,6 +2317,9 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 		render_data.cam_frustum = p_camera_data->is_frustum;
 		render_data.camera_visible_layers = p_camera_data->visible_layers;
 		render_data.main_cam_transform = p_camera_data->main_transform;
+		render_data.main_cam_inv_transform = p_camera_data->main_transform.affine_inverse();
+		render_data.main_cam_projection = p_camera_data->main_projection;
+		render_data.main_cam_inv_projection = p_camera_data->main_projection.inverse();
 
 		render_data.view_count = p_camera_data->view_count;
 		for (uint32_t v = 0; v < p_camera_data->view_count; v++) {
@@ -3890,6 +3900,9 @@ void RasterizerSceneGLES3::render_particle_collider_heightfield(RID p_collider, 
 	render_data.z_near = 0.0;
 	render_data.z_far = cm.get_z_far();
 	render_data.main_cam_transform = cam_xform;
+	render_data.main_cam_inv_projection = cam_xform.affine_inverse();
+	render_data.main_cam_projection = cm;
+	render_data.main_cam_inv_projection = cm.inverse();
 
 	render_data.instances = &p_instances;
 

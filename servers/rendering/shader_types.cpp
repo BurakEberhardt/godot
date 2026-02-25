@@ -118,7 +118,10 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["MODELVIEW_MATRIX"] = ShaderLanguage::TYPE_MAT4;
 	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["MODELVIEW_NORMAL_MATRIX"] = ShaderLanguage::TYPE_MAT3;
 	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["VIEWPORT_SIZE"] = constt(ShaderLanguage::TYPE_VEC2);
+	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["MAIN_CAM_VIEW_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
 	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["MAIN_CAM_INV_VIEW_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
+	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["MAIN_CAM_PROJECTION_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
+	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["MAIN_CAM_INV_PROJECTION_MATRIX"] = constt(ShaderLanguage::TYPE_MAT4);
 
 	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["NODE_POSITION_WORLD"] = constt(ShaderLanguage::TYPE_VEC3);
 	shader_modes[RS::SHADER_SPATIAL].functions["vertex"].built_ins["CAMERA_POSITION_WORLD"] = constt(ShaderLanguage::TYPE_VEC3);

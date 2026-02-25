@@ -53,6 +53,7 @@ public:
 
 	// For billboards to cast correct shadows.
 	Transform3D main_cam_transform;
+	Projection main_cam_projection;
 
 	// For stereo rendering
 	uint32_t view_count = 1;
@@ -130,7 +131,10 @@ private:
 		float inv_projection_matrix_view[RendererSceneRender::MAX_RENDER_VIEWS][16];
 		float eye_offset[RendererSceneRender::MAX_RENDER_VIEWS][4];
 
+		float main_cam_view_matrix[16];
 		float main_cam_inv_view_matrix[16];
+		float main_cam_projection_matrix[16];
+		float main_cam_inv_projection_matrix[16];
 
 		float viewport_size[2];
 		float screen_pixel_size[2];

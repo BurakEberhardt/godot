@@ -1250,7 +1250,10 @@ MaterialStorage::MaterialStorage() {
 		actions.renames["INV_PROJECTION_MATRIX"] = "inv_projection_matrix";
 		actions.renames["MODELVIEW_MATRIX"] = "modelview";
 		actions.renames["MODELVIEW_NORMAL_MATRIX"] = "modelview_normal";
+		actions.renames["MAIN_CAM_VIEW_MATRIX"] = "scene_data_block.data.main_cam_view_matrix";
 		actions.renames["MAIN_CAM_INV_VIEW_MATRIX"] = "scene_data_block.data.main_cam_inv_view_matrix";
+		actions.renames["MAIN_CAM_PROJECTION_MATRIX"] = "scene_data_block.data.main_cam_projection_matrix";
+		actions.renames["MAIN_CAM_INV_PROJECTION_MATRIX"] = "scene_data_block.data.main_cam_inv_projection_matrix";
 
 		actions.renames["VERTEX"] = "vertex";
 		actions.renames["NORMAL"] = "normal";

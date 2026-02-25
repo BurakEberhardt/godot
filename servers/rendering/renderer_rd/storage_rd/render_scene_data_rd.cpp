@@ -107,7 +107,11 @@ void RenderSceneDataRD::update_ubo(RID p_uniform_buffer, RS::ViewportDebugDraw p
 		ubo.eye_offset[v][3] = 0.0;
 	}
 
+	Projection main_projection = correction * main_cam_projection;
+	RendererRD::MaterialStorage::store_transform(main_cam_transform.affine_inverse(), ubo.main_cam_view_matrix);
 	RendererRD::MaterialStorage::store_transform(main_cam_transform, ubo.main_cam_inv_view_matrix);
+	RendererRD::MaterialStorage::store_camera(main_projection, ubo.main_cam_projection_matrix);
+	RendererRD::MaterialStorage::store_camera(main_projection.inverse(), ubo.main_cam_inv_projection_matrix);
 
 	ubo.taa_jitter[0] = taa_jitter.x;
 	ubo.taa_jitter[1] = taa_jitter.y;
