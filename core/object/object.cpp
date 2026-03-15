@@ -30,6 +30,7 @@
 
 #include "object.h"
 
+#include "core/config/engine.h"
 #include "core/extension/gdextension_manager.h"
 #include "core/io/resource.h"
 #include "core/object/class_db.h"
@@ -234,6 +235,7 @@ void ObjectGDExtension::create_gdtype() {
 	ERR_FAIL_COND(gdtype);
 
 	gdtype = memnew(GDType(ClassDB::get_gdtype(parent_class_name), class_name));
+	gdtype->initialize();
 }
 
 void ObjectGDExtension::destroy_gdtype() {
@@ -616,9 +618,8 @@ void Object::get_property_list(List<PropertyInfo> *p_list, bool p_reversed) cons
 
 	_get_property_listv(p_list, p_reversed);
 
-	if (!is_class("Script")) { // can still be set, but this is for user-friendliness
-		p_list->push_back(PropertyInfo(Variant::OBJECT, "script", PROPERTY_HINT_RESOURCE_TYPE, "Script", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_NEVER_DUPLICATE));
-	}
+	const uint32_t base_script_usage = is_class(Script::get_class_static()) ? PROPERTY_USAGE_NO_EDITOR : PROPERTY_USAGE_DEFAULT;
+	p_list->push_back(PropertyInfo(Variant::OBJECT, "script", PROPERTY_HINT_RESOURCE_TYPE, Script::get_class_static(), base_script_usage | PROPERTY_USAGE_INTERNAL | PROPERTY_USAGE_NEVER_DUPLICATE));
 
 	if (script_instance && !p_reversed) {
 		script_instance->get_property_list(p_list);
@@ -630,10 +631,10 @@ void Object::get_property_list(List<PropertyInfo> *p_list, bool p_reversed) cons
 			pi.hint = PROPERTY_HINT_RESOURCE_TYPE;
 			Object *obj = K.value;
 			if (Object::cast_to<Script>(obj)) {
-				pi.hint_string = "Script";
+				pi.hint_string = Script::get_class_static();
 				pi.usage |= PROPERTY_USAGE_NEVER_DUPLICATE;
 			} else {
-				pi.hint_string = "Resource";
+				pi.hint_string = Resource::get_class_static();
 			}
 		}
 		p_list->push_back(pi);
@@ -1441,6 +1442,10 @@ void Object::_reset_gdtype() const {
 	}
 }
 
+void Object::autorelease_gdtype(GDType **r_type) {
+	ClassDB::gdtype_autorelease_pool.push_back(r_type);
+}
+
 void Object::_add_user_signal(const String &p_name, const Array &p_args) {
 	// this version of add_user_signal is meant to be used from scripts or external apis
 	// without access to ADD_SIGNAL in bind_methods
@@ -1793,10 +1798,18 @@ Variant Object::_get_indexed_bind(const NodePath &p_name) const {
 
 void Object::initialize_class() {
 	static bool initialized = false;
-	if (initialized) {
+	if (likely(initialized)) {
 		return;
 	}
-	_add_class_to_classdb(get_gdtype_static(), nullptr);
+
+	static BinaryMutex __init_mutex;
+	MutexLock lock(__init_mutex);
+	if (initialized) {
+		// Initialized on another thread while we were waiting.
+		return;
+	}
+	_add_class_to_classdb(get_gdtype_static_mutable(), nullptr);
+	get_gdtype_static_mutable().initialize();
 	_bind_methods();
 	_bind_compatibility_methods();
 	initialized = true;
@@ -1872,7 +1885,7 @@ void Object::_clear_internal_resource_paths(const Variant &p_var) {
 	}
 }
 
-void Object::_add_class_to_classdb(const GDType &p_type, const GDType *p_inherits) {
+void Object::_add_class_to_classdb(GDType &p_type, const GDType *p_inherits) {
 	ClassDB::_add_class(p_type, p_inherits);
 }
 
@@ -2080,6 +2093,10 @@ void Object::_bind_methods() {
 	BIND_ENUM_CONSTANT(CONNECT_APPEND_SOURCE_OBJECT);
 }
 
+void Object::call_deferredp(const StringName &p_method, const Variant **p_args, int p_argcount, bool p_show_error) {
+	MessageQueue::get_singleton()->push_callp(this, p_method, p_args, p_argcount);
+}
+
 void Object::set_deferred(const StringName &p_property, const Variant &p_value) {
 	MessageQueue::get_singleton()->push_set(this, p_property, p_value);
 }
@@ -2259,8 +2276,8 @@ void *Object::get_instance_binding(void *p_token, const GDExtensionInstanceBindi
 		}
 	}
 	if (unlikely(!binding && p_callbacks)) {
-		uint32_t current_size = next_power_of_2(_instance_binding_count);
-		uint32_t new_size = next_power_of_2(_instance_binding_count + 1);
+		uint32_t current_size = Math::next_power_of_2(_instance_binding_count);
+		uint32_t new_size = Math::next_power_of_2(_instance_binding_count + 1);
 
 		if (current_size == 0 || new_size > current_size) {
 			_instance_bindings = (InstanceBinding *)memrealloc(_instance_bindings, new_size * sizeof(InstanceBinding));
@@ -2401,20 +2418,6 @@ void Object::detach_from_objectdb() {
 		ObjectDB::remove_instance(this);
 		_instance_id = ObjectID();
 	}
-}
-
-void Object::assign_type_static(GDType **type_ptr, const char *p_name, const GDType *super_type) {
-	static BinaryMutex _mutex;
-	MutexLock lock(_mutex);
-	GDType *type = *type_ptr;
-	if (type) {
-		// Assigned while we were waiting.
-		return;
-	}
-	type = memnew(GDType(super_type, StringName(p_name)));
-	*type_ptr = type;
-
-	ClassDB::gdtype_autorelease_pool.push_back(type_ptr);
 }
 
 Object::~Object() {
@@ -2638,7 +2641,7 @@ void ObjectDB::cleanup() {
 	spin_lock.lock();
 
 	if (slot_count > 0) {
-		WARN_PRINT("ObjectDB instances leaked at exit (run with --verbose for details).");
+		WARN_PRINT(vformat("%d ObjectDB %s leaked at exit (run with `--verbose` for details).", slot_count, slot_count == 1 ? "instance was" : "instances were"));
 		if (OS::get_singleton()->is_stdout_verbose()) {
 			// Ensure calling the native classes because if a leaked instance has a script
 			// that overrides any of those methods, it'd not be OK to call them at this point,
