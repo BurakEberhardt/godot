@@ -165,7 +165,7 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 	}
 
 	bool texture_repeat = (MIN(uvs[0].x, uvs[2].x) < 0.0) || (MIN(uvs[0].y, uvs[2].y) < 0.0) || (MAX(uvs[0].x, uvs[2].x) > 1.0) || (MAX(uvs[0].y, uvs[2].y) > 1.0);
-	
+
 	Vector2 uv2s[4] = {
 		uvs[2],
 		uvs[3],
@@ -254,7 +254,7 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 		memcpy(&attribute_write_buffer[i * attrib_stride + mesh_surface_offsets[RSE::ARRAY_TEX_UV]], v_uv, 8);
 
 		float v_uv2[2] = { (float)uv2s[i].x, (float)uv2s[i].y };
-		memcpy(&attribute_write_buffer[i * attrib_stride + mesh_surface_offsets[RS::ARRAY_TEX_UV2]], v_uv2, 8);
+		memcpy(&attribute_write_buffer[i * attrib_stride + mesh_surface_offsets[RSE::ARRAY_TEX_UV2]], v_uv2, 8);
 
 		float v_vertex[3] = { (float)vtx.x, (float)vtx.y, (float)vtx.z };
 
