@@ -83,6 +83,17 @@ void RenderForwardClustered::RenderBufferDataForwardClustered::ensure_voxelgi() 
 	}
 }
 
+void RenderForwardClustered::RenderBufferDataForwardClustered::ensure_custom_data() {
+	ERR_FAIL_NULL(render_buffers);
+	if (!render_buffers->has_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_CUSTOM_DATA)) {
+		bool msaa = render_buffers->get_msaa_3d() != RSE::VIEWPORT_MSAA_DISABLED;
+		render_buffers->create_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_CUSTOM_DATA, get_custom_data_format(), get_custom_data_usage_bits(msaa, false, render_buffers->get_can_be_storage()));
+		if (msaa) {
+			render_buffers->create_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_CUSTOM_DATA_MSAA, get_custom_data_format(), get_custom_data_usage_bits(false, msaa, render_buffers->get_can_be_storage()), render_buffers->get_texture_samples());
+		}
+	}
+}
+
 void RenderForwardClustered::RenderBufferDataForwardClustered::ensure_fsr2(RendererRD::FSR2Effect *p_effect) {
 	if (fsr2_context == nullptr) {
 		fsr2_context = p_effect->create_context(render_buffers->get_internal_size(), render_buffers->get_target_size());
@@ -193,13 +204,19 @@ RID RenderForwardClustered::RenderBufferDataForwardClustered::get_color_pass_fb(
 		velocity_buffer = render_buffers->get_velocity_buffer(use_msaa);
 	}
 
+	RID custom_data;
+	if (p_color_pass_flags & COLOR_PASS_FLAG_CUSTOM_DATA) {
+		ensure_custom_data();
+		custom_data = render_buffers->get_texture(RB_SCOPE_FORWARD_CLUSTERED, use_msaa ? RB_TEX_CUSTOM_DATA_MSAA : RB_TEX_CUSTOM_DATA);
+	}
+
 	RID depth = use_msaa ? render_buffers->get_texture(RB_SCOPE_BUFFERS, RB_TEX_DEPTH_MSAA) : render_buffers->get_depth_texture();
 
 	if (render_buffers->has_texture(RB_SCOPE_VRS, RB_TEXTURE)) {
 		RID vrs_texture = render_buffers->get_texture(RB_SCOPE_VRS, RB_TEXTURE);
-		return FramebufferCacheRD::get_singleton()->get_cache_multiview(v_count, color, specular, velocity_buffer, depth, vrs_texture);
+		return FramebufferCacheRD::get_singleton()->get_cache_multiview(v_count, color, specular, velocity_buffer, custom_data, depth, vrs_texture);
 	} else {
-		return FramebufferCacheRD::get_singleton()->get_cache_multiview(v_count, color, specular, velocity_buffer, depth);
+		return FramebufferCacheRD::get_singleton()->get_cache_multiview(v_count, color, specular, velocity_buffer, custom_data, depth);
 	}
 }
 
@@ -272,6 +289,14 @@ RD::DataFormat RenderForwardClustered::RenderBufferDataForwardClustered::get_vox
 }
 
 uint32_t RenderForwardClustered::RenderBufferDataForwardClustered::get_voxelgi_usage_bits(bool p_resolve, bool p_msaa, bool p_storage) {
+	return RenderSceneBuffersRD::get_color_usage_bits(p_resolve, p_msaa, p_storage);
+}
+
+RD::DataFormat RenderForwardClustered::RenderBufferDataForwardClustered::get_custom_data_format() {
+	return RD::DATA_FORMAT_R16G16B16A16_SFLOAT;
+}
+
+uint32_t RenderForwardClustered::RenderBufferDataForwardClustered::get_custom_data_usage_bits(bool p_resolve, bool p_msaa, bool p_storage) {
 	return RenderSceneBuffersRD::get_color_usage_bits(p_resolve, p_msaa, p_storage);
 }
 
@@ -453,6 +478,10 @@ void RenderForwardClustered::_render_list_template(RenderingDevice::DrawListID p
 
 				if constexpr ((p_color_pass_flags & COLOR_PASS_FLAG_MULTIVIEW) != 0) {
 					pipeline_key.color_pass_flags |= SceneShaderForwardClustered::PIPELINE_COLOR_PASS_FLAG_MULTIVIEW;
+				}
+
+				if constexpr ((p_color_pass_flags & COLOR_PASS_FLAG_CUSTOM_DATA) != 0) {
+					pipeline_key.color_pass_flags |= SceneShaderForwardClustered::PIPELINE_COLOR_PASS_FLAG_CUSTOM_DATA;
 				}
 
 				pipeline_key.version = SceneShaderForwardClustered::PIPELINE_VERSION_COLOR_PASS;
@@ -645,6 +674,19 @@ void RenderForwardClustered::_render_list(RenderingDevice::DrawListID p_draw_lis
 				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_MOTION_VECTORS);
 				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_SEPARATE_SPECULAR | COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_MOTION_VECTORS);
 				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_TRANSPARENT | COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_MOTION_VECTORS);
+				// Custom data variants:
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_TRANSPARENT | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_TRANSPARENT | COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_TRANSPARENT | COLOR_PASS_FLAG_MOTION_VECTORS | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_SEPARATE_SPECULAR | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_SEPARATE_SPECULAR | COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_SEPARATE_SPECULAR | COLOR_PASS_FLAG_MOTION_VECTORS | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_MOTION_VECTORS | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_MOTION_VECTORS | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_SEPARATE_SPECULAR | COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_MOTION_VECTORS | COLOR_PASS_FLAG_CUSTOM_DATA);
+				VALID_FLAG_COMBINATION(COLOR_PASS_FLAG_TRANSPARENT | COLOR_PASS_FLAG_MULTIVIEW | COLOR_PASS_FLAG_MOTION_VECTORS | COLOR_PASS_FLAG_CUSTOM_DATA);
 				default: {
 					ERR_FAIL_MSG("Invalid color pass flag combination " + itos(p_params->color_pass_flags));
 				}
@@ -1870,6 +1912,7 @@ void RenderForwardClustered::_render_scene(RenderDataRD *p_render_data, const Co
 			global_pipeline_data_required.use_multiview = true;
 		}
 
+		color_pass_flags |= COLOR_PASS_FLAG_CUSTOM_DATA;
 		color_framebuffer = rb_data->get_color_pass_fb(color_pass_flags);
 		color_only_framebuffer = rb_data->get_color_only_fb();
 		samplers = rb->get_samplers();
@@ -2187,6 +2230,7 @@ void RenderForwardClustered::_render_scene(RenderDataRD *p_render_data, const Co
 				if (rb_data.is_valid()) {
 					c.push_back(Color(0, 0, 0, 0)); // Separate specular.
 					c.push_back(Color(0, 0, 0, 0)); // Motion vector. Pushed to the clear color vector even if the framebuffer isn't bound.
+					c.push_back(Color(0, 0, 0, 0)); // Custom data.
 				}
 			}
 
@@ -2392,6 +2436,7 @@ void RenderForwardClustered::_render_scene(RenderDataRD *p_render_data, const Co
 		uint32_t transparent_color_pass_flags = (color_pass_flags | uint32_t(COLOR_PASS_FLAG_TRANSPARENT)) & ~uint32_t(COLOR_PASS_FLAG_SEPARATE_SPECULAR);
 		// Motion vectors should not be overwritten by transparent objects.
 		transparent_color_pass_flags &= ~uint32_t(COLOR_PASS_FLAG_MOTION_VECTORS);
+		transparent_color_pass_flags &= ~uint32_t(COLOR_PASS_FLAG_CUSTOM_DATA);
 
 		RID alpha_framebuffer = rb_data.is_valid() ? rb_data->get_color_pass_fb(transparent_color_pass_flags) : color_only_framebuffer;
 		RenderListParameters render_list_params(render_list[RENDER_LIST_ALPHA].elements.ptr(), render_list[RENDER_LIST_ALPHA].element_info.ptr(), render_list[RENDER_LIST_ALPHA].elements.size(), reverse_cull, PASS_MODE_COLOR, transparent_color_pass_flags, rb_data.is_null(), p_render_data->directional_light_soft_shadows, rp_uniform_set, get_debug_draw_mode() == RSE::VIEWPORT_DEBUG_DRAW_WIREFRAME, Vector2(), p_render_data->scene_data->lod_distance_multiplier, p_render_data->scene_data->screen_mesh_lod_threshold, p_render_data->scene_data->view_count, 0, base_specialization);
@@ -2571,6 +2616,12 @@ void RenderForwardClustered::_render_buffers_debug_draw(const RenderDataRD *p_re
 		RID ambient_texture = rb->get_texture(RB_SCOPE_GI, RB_TEX_AMBIENT);
 		RID reflection_texture = rb->get_texture(RB_SCOPE_GI, RB_TEX_REFLECTION);
 		copy_effects->copy_to_fb_rect(ambient_texture, texture_storage->render_target_get_rd_framebuffer(render_target), Rect2(Vector2(), rtsize), false, false, false, true, reflection_texture, rb->get_view_count() > 1);
+	}
+
+	if (get_debug_draw_mode() == RSE::VIEWPORT_DEBUG_DRAW_CUSTOM_DATA && rb_data->has_custom_data()) {
+		RID custom_data = rb_data->get_custom_data();
+		Size2i rtsize = texture_storage->render_target_get_size(render_target);
+		copy_effects->copy_to_fb_rect(custom_data, texture_storage->render_target_get_rd_framebuffer(render_target), Rect2(Vector2(), rtsize), false, false);
 	}
 }
 
@@ -4414,7 +4465,7 @@ void RenderForwardClustered::_geometry_instance_update(RenderGeometryInstance *p
 	ginstance->dirty_list_element.remove_from_list();
 }
 
-static RD::FramebufferFormatID _get_color_framebuffer_format_for_pipeline(RD::DataFormat p_color_format, bool p_can_be_storage, RD::TextureSamples p_samples, bool p_specular, bool p_velocity, uint32_t p_view_count) {
+static RD::FramebufferFormatID _get_color_framebuffer_format_for_pipeline(RD::DataFormat p_color_format, bool p_can_be_storage, RD::TextureSamples p_samples, bool p_specular, bool p_velocity, bool p_custom_data, uint32_t p_view_count) {
 	const bool multisampling = p_samples > RD::TEXTURE_SAMPLES_1;
 	RD::AttachmentFormat attachment;
 	attachment.samples = p_samples;
@@ -4441,6 +4492,14 @@ static RD::FramebufferFormatID _get_color_framebuffer_format_for_pipeline(RD::Da
 	if (p_velocity) {
 		attachment.format = RenderSceneBuffersRD::get_velocity_format();
 		attachment.usage_flags = RenderSceneBuffersRD::get_velocity_usage_bits(false, multisampling, p_can_be_storage);
+		attachments.push_back(attachment);
+	} else {
+		attachments.push_back(unused_attachment);
+	}
+
+	if (p_custom_data) {
+		attachment.format = RenderForwardClustered::RenderBufferDataForwardClustered::get_custom_data_format();
+		attachment.usage_flags = RenderForwardClustered::RenderBufferDataForwardClustered::get_custom_data_usage_bits(false, multisampling, p_can_be_storage);
 		attachments.push_back(attachment);
 	} else {
 		attachments.push_back(unused_attachment);
@@ -4614,7 +4673,7 @@ void RenderForwardClustered::_mesh_compile_pipelines_for_surface(const SurfacePi
 
 				// View count is assumed to be 2 as the configuration is dependent on the viewport. It's likely a safe assumption for stereo rendering.
 				uint32_t view_count = multiview ? 2 : 1;
-				pipeline_key.framebuffer_format_id = _get_color_framebuffer_format_for_pipeline(buffers_color_format, buffers_can_be_storage, RD::TextureSamples(p_global.texture_samples), false, false, view_count);
+				pipeline_key.framebuffer_format_id = _get_color_framebuffer_format_for_pipeline(buffers_color_format, buffers_can_be_storage, RD::TextureSamples(p_global.texture_samples), false, false,  static_cast<bool>(pipeline_key.color_pass_flags & SceneShaderForwardClustered::PIPELINE_COLOR_PASS_FLAG_CUSTOM_DATA), view_count);
 				_mesh_compile_pipeline_for_surface(p_surface.shader, p_surface.mesh_surface, true, p_surface.instanced, p_source, pipeline_key, r_pipeline_pairs);
 
 				// Generate all the possible variants used during the advanced color passes.
@@ -4638,7 +4697,7 @@ void RenderForwardClustered::_mesh_compile_pipelines_for_surface(const SurfacePi
 							pipeline_key.color_pass_flags |= SceneShaderForwardClustered::PIPELINE_COLOR_PASS_FLAG_MOTION_VECTORS;
 						}
 
-						pipeline_key.framebuffer_format_id = _get_color_framebuffer_format_for_pipeline(buffers_color_format, buffers_can_be_storage, RD::TextureSamples(p_global.texture_samples), separate_specular, motion_vectors, view_count);
+						pipeline_key.framebuffer_format_id = _get_color_framebuffer_format_for_pipeline(buffers_color_format, buffers_can_be_storage, RD::TextureSamples(p_global.texture_samples), separate_specular, motion_vectors, static_cast<bool>(pipeline_key.color_pass_flags & SceneShaderForwardClustered::PIPELINE_COLOR_PASS_FLAG_CUSTOM_DATA), view_count);
 						_mesh_compile_pipeline_for_surface(p_surface.shader, p_surface.mesh_surface, true, p_surface.instanced, p_source, pipeline_key, r_pipeline_pairs);
 					}
 				}

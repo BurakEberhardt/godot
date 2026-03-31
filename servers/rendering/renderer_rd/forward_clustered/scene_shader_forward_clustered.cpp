@@ -309,6 +309,10 @@ uint16_t SceneShaderForwardClustered::ShaderData::_get_shader_version(PipelineVe
 				shader_flags |= SHADER_COLOR_PASS_FLAG_MOTION_VECTORS;
 			}
 
+			if (p_color_pass_flags & PIPELINE_COLOR_PASS_FLAG_CUSTOM_DATA) {
+				shader_flags |= SHADER_COLOR_PASS_FLAG_CUSTOM_DATA;
+			}
+
 			if (p_color_pass_flags & PIPELINE_COLOR_PASS_FLAG_LIGHTMAP) {
 				shader_flags |= SHADER_COLOR_PASS_FLAG_LIGHTMAP;
 			}
@@ -344,8 +348,8 @@ void SceneShaderForwardClustered::ShaderData::_create_pipeline(PipelineKey p_pip
 	// Color pass -> attachment 0: Color/Diffuse, attachment 1: Separate Specular, attachment 2: Motion Vectors
 	RD::PipelineColorBlendState::Attachment blend_attachment = blend_mode_to_blend_attachment(BlendMode(blend_mode));
 	RD::PipelineColorBlendState blend_state_color_blend;
-	blend_state_color_blend.attachments = { blend_attachment, RD::PipelineColorBlendState::Attachment(), RD::PipelineColorBlendState::Attachment() };
-	RD::PipelineColorBlendState blend_state_color_opaque = RD::PipelineColorBlendState::create_disabled(3);
+	blend_state_color_blend.attachments = { blend_attachment, RD::PipelineColorBlendState::Attachment(), RD::PipelineColorBlendState::Attachment(), RD::PipelineColorBlendState::Attachment() };
+	RD::PipelineColorBlendState blend_state_color_opaque = RD::PipelineColorBlendState::create_disabled(4);
 	RD::PipelineColorBlendState blend_state_depth_normal_roughness = RD::PipelineColorBlendState::create_disabled(1);
 	RD::PipelineColorBlendState blend_state_depth_normal_roughness_giprobe = RD::PipelineColorBlendState::create_disabled(2);
 
@@ -660,6 +664,7 @@ void SceneShaderForwardClustered::init(const String p_defines) {
 			"\n#define USE_LIGHTMAP\n", // SHADER_COLOR_PASS_FLAG_LIGHTMAP
 			"\n#define USE_MULTIVIEW\n", // SHADER_COLOR_PASS_FLAG_MULTIVIEW
 			"\n#define MOTION_VECTORS\n", // SHADER_COLOR_PASS_FLAG_MOTION_VECTORS
+			"\n#define CUSTOM_DATA_PASS\n", // SHADER_COLOR_PASS_FLAG_CUSTOM_DATA
 		};
 
 		for (int i = 0; i < SHADER_COLOR_PASS_FLAG_COUNT; i++) {
@@ -769,6 +774,7 @@ void SceneShaderForwardClustered::init(const String p_defines) {
 		actions.renames["AO"] = "ao";
 		actions.renames["AO_LIGHT_AFFECT"] = "ao_light_affect";
 		actions.renames["EMISSION"] = "emission";
+		actions.renames["CUSTOM_DATA"] = "custom_data_buffer";
 		actions.renames["POINT_COORD"] = "point_coord";
 		actions.renames["INSTANCE_CUSTOM"] = "instance_custom";
 		actions.renames["SCREEN_UV"] = "screen_uv";
@@ -859,6 +865,8 @@ void SceneShaderForwardClustered::init(const String p_defines) {
 
 		actions.usage_defines["POINT_SIZE"] = "#define POINT_SIZE_USED\n";
 		actions.usage_defines["POINT_COORD"] = "#define POINT_COORD_USED\n";
+
+		actions.usage_defines["CUSTOM_DATA"] = "#define CUSTOM_DATA_USED\n";
 
 		actions.render_mode_defines["skip_vertex_transform"] = "#define SKIP_TRANSFORM_USED\n";
 		actions.render_mode_defines["world_vertex_coords"] = "#define VERTEX_WORLD_COORDS_USED\n";

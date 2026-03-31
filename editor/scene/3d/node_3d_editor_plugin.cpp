@@ -4246,7 +4246,8 @@ void Node3DEditorViewport::_menu_option(int p_option) {
 		case VIEW_DISPLAY_DEBUG_CLUSTER_REFLECTION_PROBES:
 		case VIEW_DISPLAY_DEBUG_OCCLUDERS:
 		case VIEW_DISPLAY_MOTION_VECTORS:
-		case VIEW_DISPLAY_INTERNAL_BUFFER: {
+		case VIEW_DISPLAY_INTERNAL_BUFFER:
+		case VIEW_DISPLAY_DEBUG_CUSTOM_DATA: {
 			static const int display_options[] = {
 				VIEW_DISPLAY_NORMAL,
 				VIEW_DISPLAY_WIREFRAME,
@@ -4275,6 +4276,7 @@ void Node3DEditorViewport::_menu_option(int p_option) {
 				VIEW_DISPLAY_DEBUG_OCCLUDERS,
 				VIEW_DISPLAY_MOTION_VECTORS,
 				VIEW_DISPLAY_INTERNAL_BUFFER,
+				VIEW_DISPLAY_DEBUG_CUSTOM_DATA,
 				VIEW_MAX
 			};
 			static const Viewport::DebugDraw debug_draw_modes[] = {
@@ -4305,6 +4307,7 @@ void Node3DEditorViewport::_menu_option(int p_option) {
 				Viewport::DEBUG_DRAW_OCCLUDERS,
 				Viewport::DEBUG_DRAW_MOTION_VECTORS,
 				Viewport::DEBUG_DRAW_INTERNAL_BUFFER,
+				Viewport::DEBUG_DRAW_CUSTOM_DATA,
 			};
 
 			for (int idx = 0; display_options[idx] != VIEW_MAX; idx++) {
@@ -6393,6 +6396,7 @@ Node3DEditorViewport::Node3DEditorViewport(Node3DEditor *p_spatial_editor, int p
 	display_submenu->add_separator();
 	// TRANSLATORS: "Normal" as in "normal vector", not "normal life".
 	_add_advanced_debug_draw_mode_item(display_submenu, TTRC("Normal Buffer"), VIEW_DISPLAY_NORMAL_BUFFER, SupportedRenderingMethods::FORWARD_PLUS);
+	_add_advanced_debug_draw_mode_item(display_submenu, TTRC("Custom Data"), VIEW_DISPLAY_DEBUG_CUSTOM_DATA, SupportedRenderingMethods::FORWARD_PLUS);
 	display_submenu->add_separator();
 	_add_advanced_debug_draw_mode_item(display_submenu, TTRC("Shadow Atlas"), VIEW_DISPLAY_DEBUG_SHADOW_ATLAS, SupportedRenderingMethods::ALL,
 			TTRC("Displays the shadow atlas used for positional (omni/spot) shadow mapping.\nRequires a visible OmniLight3D or SpotLight3D node with shadows enabled to have a visible effect."));

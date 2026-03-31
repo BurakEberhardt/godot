@@ -1071,6 +1071,12 @@ layout(location = 0) out vec4 frag_color;
 layout(location = 2) out vec2 motion_vector;
 #endif
 
+#ifdef CUSTOM_DATA_PASS
+layout(location = 3) out vec4 custom_data_buffer;
+#else
+vec4 custom_data_buffer; // dummy for non-custom-data variants
+#endif
+
 #include "../scene_forward_aa_inc.glsl"
 
 #if !defined(MODE_RENDER_DEPTH) && !defined(MODE_UNSHADED)
