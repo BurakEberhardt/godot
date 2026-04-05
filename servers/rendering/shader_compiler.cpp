@@ -529,6 +529,7 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 					if (E.value.hint == SL::ShaderNode::Uniform::HINT_SCREEN_TEXTURE ||
 							E.value.hint == SL::ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE ||
 							E.value.hint == SL::ShaderNode::Uniform::HINT_DEPTH_TEXTURE ||
+							E.value.hint == SL::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE ||
 							E.value.hint == SL::ShaderNode::Uniform::HINT_BLIT_SOURCE0 ||
 							E.value.hint == SL::ShaderNode::Uniform::HINT_BLIT_SOURCE1 ||
 							E.value.hint == SL::ShaderNode::Uniform::HINT_BLIT_SOURCE2 ||
@@ -578,6 +579,7 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 				if (uniform.hint == SL::ShaderNode::Uniform::HINT_SCREEN_TEXTURE ||
 						uniform.hint == SL::ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE ||
 						uniform.hint == SL::ShaderNode::Uniform::HINT_DEPTH_TEXTURE ||
+						uniform.hint == SL::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE ||
 						uniform.hint == SL::ShaderNode::Uniform::HINT_BLIT_SOURCE0 ||
 						uniform.hint == SL::ShaderNode::Uniform::HINT_BLIT_SOURCE1 ||
 						uniform.hint == SL::ShaderNode::Uniform::HINT_BLIT_SOURCE2 ||
@@ -946,6 +948,9 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 						} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_DEPTH_TEXTURE) {
 							name = "depth_buffer";
 							r_gen_code.uses_depth_texture = true;
+						} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
+							name = "custom_data_read_buffer";
+							r_gen_code.uses_custom_data_texture = true;
 						} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_BLIT_SOURCE0) {
 							name = "source0";
 						} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_BLIT_SOURCE1) {
@@ -1288,6 +1293,7 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 								// Need to map from texture to sampler in order to sample when using Vulkan GLSL.
 								String sampler_name;
 								bool is_depth_texture = false;
+								bool is_custom_data_texture = false;
 
 								if (actions.custom_samplers.has(texture_uniform)) {
 									sampler_name = actions.custom_samplers[texture_uniform];
@@ -1300,6 +1306,8 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 											is_depth_texture = true;
 										} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE) {
 											is_normal_roughness_texture = true;
+										} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
+											is_custom_data_texture = true;
 										}
 										sampler_name = _get_sampler_name(u.filter, u.repeat);
 									} else {
@@ -1320,6 +1328,8 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 														is_depth_texture = true;
 													} else if (function->arguments[j].tex_hint == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE) {
 														is_normal_roughness_texture = true;
+													} else if (function->arguments[j].tex_hint == ShaderLanguage::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
+														is_custom_data_texture = true;
 													}
 													sampler_name = _get_sampler_name(function->arguments[j].tex_argument_filter, function->arguments[j].tex_argument_repeat);
 													found = true;
@@ -1339,7 +1349,7 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 								}
 
 								String data_type_name = "";
-								if (actions.check_multiview_samplers && (is_screen_texture || is_depth_texture || is_normal_roughness_texture)) {
+								if (actions.check_multiview_samplers && (is_screen_texture || is_depth_texture || is_normal_roughness_texture || is_custom_data_texture)) {
 									data_type_name = "multiviewSampler";
 									multiview_uv_needed = true;
 								} else if (is_radiance_texture) {
@@ -1364,6 +1374,8 @@ String ShaderCompiler::_dump_node_code(const SL::Node *p_node, int p_level, Gene
 										} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_DEPTH_TEXTURE) {
 											multiview_uv_needed = true;
 										} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE) {
+											multiview_uv_needed = true;
+										} else if (u.hint == ShaderLanguage::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
 											multiview_uv_needed = true;
 										}
 									}
@@ -1626,6 +1638,7 @@ Error ShaderCompiler::compile(RSE::ShaderMode p_mode, const String &p_code, Iden
 	r_gen_code.uses_screen_texture = false;
 	r_gen_code.uses_depth_texture = false;
 	r_gen_code.uses_normal_roughness_texture = false;
+	r_gen_code.uses_custom_data_texture = false;
 
 	used_name_defines.clear();
 	used_rmode_defines.clear();

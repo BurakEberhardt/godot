@@ -90,6 +90,7 @@ public:
 		bool uses_screen_texture = false;
 		bool uses_depth_texture = false;
 		bool uses_normal_roughness_texture = false;
+		bool uses_custom_data_texture = false;
 	};
 
 	struct DefaultIdentifierActions {

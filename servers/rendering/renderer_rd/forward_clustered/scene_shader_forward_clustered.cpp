@@ -200,6 +200,7 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 	uses_screen_texture = gen_code.uses_screen_texture;
 	uses_depth_texture = gen_code.uses_depth_texture;
 	uses_normal_texture = gen_code.uses_normal_roughness_texture;
+	uses_custom_data_texture = gen_code.uses_custom_data_texture;
 	uses_vertex_time = gen_code.uses_vertex_time;
 	uses_fragment_time = gen_code.uses_fragment_time;
 	uses_normal |= uses_normal_map;
@@ -250,7 +251,7 @@ bool SceneShaderForwardClustered::ShaderData::is_animated() const {
 }
 
 bool SceneShaderForwardClustered::ShaderData::casts_shadows() const {
-	bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture;
+	bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture || uses_custom_data_texture;
 	bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || uses_alpha_antialiasing)) || has_read_screen_alpha;
 	bool has_alpha = has_base_alpha || uses_blend_alpha;
 

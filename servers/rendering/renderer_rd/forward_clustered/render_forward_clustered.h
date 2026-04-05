@@ -58,6 +58,8 @@
 #define RB_TEX_CUSTOM_DATA SNAME("custom_data")
 #define RB_TEX_CUSTOM_DATA_MSAA SNAME("custom_data_msaa")
 
+#define RB_TEX_BACK_CUSTOM_DATA SNAME("custom_data_back")
+
 namespace RendererSceneRenderImplementation {
 
 class RenderForwardClustered : public RendererSceneRenderRD {
@@ -188,6 +190,9 @@ private:
 	void _update_render_base_uniform_set();
 	RID _setup_sdfgi_render_pass_uniform_set(RID p_albedo_texture, RID p_emission_texture, RID p_emission_aniso_texture, RID p_geom_facing_texture, const RendererRD::MaterialStorage::Samplers &p_samplers, uint32_t p_uniform_buffer_index);
 	RID _setup_render_pass_uniform_set(RenderListType p_render_list, const RenderDataRD *p_render_data, RID p_radiance_texture, const RendererRD::MaterialStorage::Samplers &p_samplers, uint32_t p_uniform_buffer_index, bool p_use_directional_shadow_atlas = false);
+
+	void _render_buffers_ensure_custom_data_texture(const RenderDataRD *p_render_data);
+	void _render_buffers_copy_custom_data_texture(const RenderDataRD *p_render_data);
 
 	struct BestFitNormal {
 		BestFitNormalShaderRD shader;
@@ -426,6 +431,7 @@ private:
 		bool used_screen_texture = false;
 		bool used_normal_texture = false;
 		bool used_depth_texture = false;
+		bool uses_custom_data_texture = false;
 		bool used_sss = false;
 		bool used_lightmap = false;
 		bool used_opaque_stencil = false;
@@ -509,6 +515,7 @@ private:
 			FLAG_USES_PARTICLE_TRAILS = 65536,
 			FLAG_USES_MOTION_VECTOR = 131072,
 			FLAG_USES_STENCIL = 262144,
+			FLAG_USES_CUSTOM_DATA_TEXTURE = 524288,
 		};
 
 		union {
@@ -682,6 +689,7 @@ private:
 		bool screen_texture_used = false;
 		bool normal_texture_used = false;
 		bool depth_texture_used = false;
+		bool custom_data_texture_used = false;
 		bool sss_used = false;
 	} global_surface_data;
 

@@ -261,6 +261,7 @@ public:
 		bool uses_screen_texture = false;
 		bool uses_depth_texture = false;
 		bool uses_normal_texture = false;
+		bool uses_custom_data_texture = false;
 		bool uses_time = false;
 		bool uses_vertex_time = false;
 		bool uses_fragment_time = false;
@@ -279,7 +280,7 @@ public:
 		uint32_t index = 0;
 
 		_FORCE_INLINE_ bool uses_alpha_pass() const {
-			bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture;
+			bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture || uses_custom_data_texture;
 			bool has_base_alpha = (uses_alpha && (!uses_alpha_clip || uses_alpha_antialiasing)) || has_read_screen_alpha;
 			bool has_blend_alpha = uses_blend_alpha;
 			bool has_alpha = has_base_alpha || has_blend_alpha;

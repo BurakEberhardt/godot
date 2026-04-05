@@ -851,7 +851,8 @@ void MaterialData::update_textures(const HashMap<StringName, Variant> &p_paramet
 
 		if (p_texture_uniforms[i].hint == ShaderLanguage::ShaderNode::Uniform::HINT_SCREEN_TEXTURE ||
 				p_texture_uniforms[i].hint == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE ||
-				p_texture_uniforms[i].hint == ShaderLanguage::ShaderNode::Uniform::HINT_DEPTH_TEXTURE) {
+				p_texture_uniforms[i].hint == ShaderLanguage::ShaderNode::Uniform::HINT_DEPTH_TEXTURE ||
+				p_texture_uniforms[i].hint == ShaderLanguage::ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
 			continue;
 		}
 
@@ -3154,6 +3155,7 @@ void SceneShaderData::set_code(const String &p_code) {
 	uses_screen_texture_mipmaps = gen_code.uses_screen_texture_mipmaps;
 	uses_depth_texture = gen_code.uses_depth_texture;
 	uses_normal_texture = gen_code.uses_normal_roughness_texture;
+	uses_custom_data_texture = gen_code.uses_custom_data_texture;
 	uses_vertex_time = gen_code.uses_vertex_time;
 	uses_fragment_time = gen_code.uses_fragment_time;
 

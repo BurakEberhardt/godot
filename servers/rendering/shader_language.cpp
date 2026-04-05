@@ -222,6 +222,7 @@ const char *ShaderLanguage::token_names[TK_MAX] = {
 	"HINT_SCREEN_TEXTURE",
 	"HINT_NORMAL_ROUGHNESS_TEXTURE",
 	"HINT_DEPTH_TEXTURE",
+	"HINT_CUSTOM_DATA_TEXTURE",
 	"HINT_BLIT_SOURCE0",
 	"HINT_BLIT_SOURCE1",
 	"HINT_BLIT_SOURCE2",
@@ -397,6 +398,7 @@ const ShaderLanguage::KeyWord ShaderLanguage::keyword_list[] = {
 	{ TK_HINT_SCREEN_TEXTURE, "hint_screen_texture", CF_UNSPECIFIED, {}, {} },
 	{ TK_HINT_NORMAL_ROUGHNESS_TEXTURE, "hint_normal_roughness_texture", CF_UNSPECIFIED, {}, {} },
 	{ TK_HINT_DEPTH_TEXTURE, "hint_depth_texture", CF_UNSPECIFIED, {}, {} },
+	{ TK_HINT_CUSTOM_DATA_TEXTURE, "hint_custom_data_texture", CF_UNSPECIFIED, {}, {} },
 
 	{ TK_HINT_BLIT_SOURCE0, "hint_blit_source0", CF_UNSPECIFIED, {}, {} },
 	{ TK_HINT_BLIT_SOURCE1, "hint_blit_source1", CF_UNSPECIFIED, {}, {} },
@@ -1246,6 +1248,9 @@ String ShaderLanguage::get_uniform_hint_name(ShaderNode::Uniform::Hint p_hint) {
 		} break;
 		case ShaderNode::Uniform::HINT_DEPTH_TEXTURE: {
 			result = "hint_depth_texture";
+		} break;
+		case ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE: {
+			result = "hint_custom_data_texture";
 		} break;
 		case ShaderNode::Uniform::HINT_BLIT_SOURCE0: {
 			result = "hint_blit_source0";
@@ -5658,7 +5663,8 @@ bool ShaderLanguage::_validate_assign(Node *p_node, const FunctionInfo &p_functi
 ShaderLanguage::ShaderNode::Uniform::Hint ShaderLanguage::_sanitize_hint(ShaderNode::Uniform::Hint p_hint) {
 	if (p_hint == ShaderNode::Uniform::HINT_SCREEN_TEXTURE ||
 			p_hint == ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE ||
-			p_hint == ShaderNode::Uniform::HINT_DEPTH_TEXTURE) {
+			p_hint == ShaderNode::Uniform::HINT_DEPTH_TEXTURE ||
+			p_hint == ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
 		return p_hint;
 	}
 	return ShaderNode::Uniform::HINT_NONE;
@@ -6526,7 +6532,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 											if (RendererCompositor::get_singleton()->is_xr_enabled() && is_custom_func) {
 												ShaderNode::Uniform::Hint hint = u->hint;
 
-												if (hint == ShaderNode::Uniform::HINT_DEPTH_TEXTURE || hint == ShaderNode::Uniform::HINT_SCREEN_TEXTURE || hint == ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE) {
+												if (hint == ShaderNode::Uniform::HINT_DEPTH_TEXTURE || hint == ShaderNode::Uniform::HINT_SCREEN_TEXTURE || hint == ShaderNode::Uniform::HINT_NORMAL_ROUGHNESS_TEXTURE || hint == ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE) {
 													_set_error(vformat(RTR("Unable to pass a multiview texture sampler as a parameter to a custom function. Consider sampling it in the main function and then passing the vector result to the custom function."), get_uniform_hint_name(hint)));
 													return nullptr;
 												}
@@ -10083,6 +10089,15 @@ Error ShaderLanguage::_parse_shader(const HashMap<StringName, FunctionInfo> &p_f
 										return ERR_PARSE_ERROR;
 									}
 								} break;
+								case TK_HINT_CUSTOM_DATA_TEXTURE: {
+									new_hint = ShaderNode::Uniform::HINT_CUSTOM_DATA_TEXTURE;
+									--texture_uniforms;
+									--texture_binding;
+									if (shader_type_identifier != StringName() && String(shader_type_identifier) != "spatial") {
+										_set_error(vformat(RTR("'hint_custom_data_texture' is not supported in '%s' shaders."), shader_type_identifier));
+										return ERR_PARSE_ERROR;
+									}
+								} break;
 								case TK_HINT_BLIT_SOURCE0: {
 									new_hint = ShaderNode::Uniform::HINT_BLIT_SOURCE0;
 									--texture_uniforms;
@@ -12162,6 +12177,7 @@ Error ShaderLanguage::complete(const String &p_code, const ShaderCompileInfo &p_
 						options.push_back("hint_screen_texture");
 						options.push_back("hint_normal_roughness_texture");
 						options.push_back("hint_depth_texture");
+						options.push_back("hint_custom_depth_texture");
 						options.push_back("hint_blit_source0");
 						options.push_back("hint_blit_source1");
 						options.push_back("hint_blit_source2");

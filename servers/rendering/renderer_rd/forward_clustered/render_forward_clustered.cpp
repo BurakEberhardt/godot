@@ -297,7 +297,7 @@ RD::DataFormat RenderForwardClustered::RenderBufferDataForwardClustered::get_cus
 }
 
 uint32_t RenderForwardClustered::RenderBufferDataForwardClustered::get_custom_data_usage_bits(bool p_resolve, bool p_msaa, bool p_storage) {
-	return RenderSceneBuffersRD::get_color_usage_bits(p_resolve, p_msaa, p_storage);
+	return RenderSceneBuffersRD::get_color_usage_bits(p_resolve, p_msaa, p_storage) | RD::TEXTURE_USAGE_CAN_COPY_TO_BIT;
 }
 
 void RenderForwardClustered::setup_render_buffer_data(Ref<RenderSceneBuffersRD> p_render_buffers) {
@@ -1210,6 +1210,9 @@ void RenderForwardClustered::_fill_render_list(RenderListType p_render_list, con
 				}
 				if (surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_DEPTH_TEXTURE) {
 					scene_state.used_depth_texture = true;
+				}
+				if (surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_CUSTOM_DATA_TEXTURE) {
+					scene_state.uses_custom_data_texture = true;
 				}
 				if ((surf->flags & GeometryInstanceSurfaceDataCache::FLAG_USES_STENCIL) && !force_alpha && (surf->flags & (GeometryInstanceSurfaceDataCache::FLAG_PASS_DEPTH | GeometryInstanceSurfaceDataCache::FLAG_PASS_OPAQUE))) {
 					scene_state.used_opaque_stencil = true;
@@ -2398,6 +2401,17 @@ void RenderForwardClustered::_render_scene(RenderDataRD *p_render_data, const Co
 		if (scene_state.used_depth_texture) {
 			// Copy depth texture to backbuffer so we can read from it
 			_render_buffers_copy_depth_texture(p_render_data);
+		}
+	}
+
+	if (scene_state.uses_custom_data_texture || global_surface_data.custom_data_texture_used) {
+		RENDER_TIMESTAMP("Copy Custom Data Texture");
+
+		_render_buffers_ensure_custom_data_texture(p_render_data);
+
+		if (scene_state.uses_custom_data_texture) {
+			// Copy custom data texture to backbuffer so we can read from it
+			_render_buffers_copy_custom_data_texture(p_render_data);
 		}
 	}
 
@@ -3714,6 +3728,20 @@ RID RenderForwardClustered::_setup_render_pass_uniform_set(RenderListType p_rend
 		uniforms.push_back(u);
 	}
 
+	{
+		RD::Uniform u;
+		u.binding = 37;
+		u.uniform_type = RD::UNIFORM_TYPE_TEXTURE;
+		RID texture;
+		if (rb_data.is_valid() && rb->has_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_BACK_CUSTOM_DATA)) {
+			texture = rb->get_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_BACK_CUSTOM_DATA);
+		} else {
+			texture = texture_storage->texture_rd_get_default(is_multiview ? RendererRD::TextureStorage::DEFAULT_RD_TEXTURE_2D_ARRAY_BLACK : RendererRD::TextureStorage::DEFAULT_RD_TEXTURE_BLACK);
+		}
+		u.append_id(texture);
+		uniforms.push_back(u);
+	}
+
 	return UniformSetCacheRD::get_singleton()->get_cache_vec(scene_shader.default_shader_rd, RENDER_PASS_UNIFORM_SET, uniforms);
 }
 
@@ -3941,6 +3969,49 @@ RID RenderForwardClustered::_render_buffers_get_velocity_texture(Ref<RenderScene
 	return p_render_buffers->get_velocity_buffer(false);
 }
 
+void RenderForwardClustered::_render_buffers_ensure_custom_data_texture(const RenderDataRD *p_render_data) {
+	Ref<RenderSceneBuffersRD> rb = p_render_data->render_buffers;
+	ERR_FAIL_COND(rb.is_null());
+
+	if (!rb->has_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_CUSTOM_DATA)) {
+		return;
+	}
+
+	uint32_t usage_bits = RD::TEXTURE_USAGE_SAMPLING_BIT;
+	usage_bits |= RD::TEXTURE_USAGE_CAN_COPY_TO_BIT | RD::TEXTURE_USAGE_STORAGE_BIT;
+	usage_bits |= RD::TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	rb->create_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_BACK_CUSTOM_DATA, RD::DATA_FORMAT_R16G16B16A16_SFLOAT, usage_bits, RD::TEXTURE_SAMPLES_1);
+}
+
+void RenderForwardClustered::_render_buffers_copy_custom_data_texture(const RenderDataRD *p_render_data) {
+	Ref<RenderSceneBuffersRD> rb = p_render_data->render_buffers;
+	ERR_FAIL_COND(rb.is_null());
+
+	if (!rb->has_texture(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_CUSTOM_DATA)) {
+		return;
+	}
+
+	RD::get_singleton()->draw_command_begin_label("Copy Custom Data Texture");
+
+	bool can_use_storage = _render_buffers_can_be_storage();
+	Size2i size = rb->get_internal_size();
+
+	for (uint32_t v = 0; v < p_render_data->scene_data->view_count; v++) {
+		RID custom_data_texture = rb->get_texture_slice(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_CUSTOM_DATA, v, 0);
+		RID custom_data_back_texture = rb->get_texture_slice(RB_SCOPE_FORWARD_CLUSTERED, RB_TEX_BACK_CUSTOM_DATA, v, 0);
+
+		if (can_use_storage) {
+			copy_effects->copy_to_rect(custom_data_texture, custom_data_back_texture, Rect2i(0, 0, size.x, size.y));
+		} else {
+			RID custom_data_back_fb = FramebufferCacheRD::get_singleton()->get_cache(custom_data_back_texture);
+			copy_effects->copy_to_fb_rect(custom_data_texture, custom_data_back_fb, Rect2i(0, 0, size.x, size.y));
+		}
+	}
+
+	RD::get_singleton()->draw_command_end_label();
+}
+
 void RenderForwardClustered::environment_set_ssao_quality(RSE::EnvironmentSSAOQuality p_quality, bool p_half_size, float p_adaptive_target, int p_blur_passes, float p_fadeout_from, float p_fadeout_to) {
 	ERR_FAIL_NULL(ss_effects);
 	ERR_FAIL_COND(p_quality < RSE::EnvironmentSSAOQuality::ENV_SSAO_QUALITY_VERY_LOW || p_quality > RSE::EnvironmentSSAOQuality::ENV_SSAO_QUALITY_ULTRA);
@@ -4130,6 +4201,11 @@ void RenderForwardClustered::_geometry_instance_add_surface_with_material(Geomet
 	if (p_material->shader_data->uses_normal_texture) {
 		flags |= GeometryInstanceSurfaceDataCache::FLAG_USES_NORMAL_TEXTURE;
 		global_surface_data.normal_texture_used = true;
+	}
+
+	if (p_material->shader_data->uses_custom_data_texture) {
+		flags |= GeometryInstanceSurfaceDataCache::FLAG_USES_CUSTOM_DATA_TEXTURE;
+		global_surface_data.custom_data_texture_used = true;
 	}
 
 	if (ginstance->data->cast_double_sided_shadows) {
