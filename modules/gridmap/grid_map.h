@@ -86,6 +86,9 @@ class GridMap : public Node3D {
 		IndexKey() {}
 	};
 
+	static inline int index_to_cell_yscale(int index) { return index + 1; }
+	static inline int cell_yscale_to_index(int yscale)  { return CLAMP(yscale - 1, 0, 7); }
+
 	/**
 	 * @brief A Cell is a single cell in the cube map space; it is defined by its coordinates and the populating Item, identified by int id.
 	 */
@@ -94,6 +97,7 @@ class GridMap : public Node3D {
 			unsigned int item : 16;
 			unsigned int rot : 5;
 			unsigned int layer : 8;
+			unsigned int yscale:  3;
 		};
 		uint32_t cell = 0;
 	};
@@ -297,9 +301,10 @@ public:
 	void set_center_z(bool p_enable);
 	bool get_center_z() const;
 
-	void set_cell_item(const Vector3i &p_position, int p_item, int p_rot = 0);
+	void set_cell_item(const Vector3i &p_position, int p_item, int p_rot = 0, int p_yscale = 1);
 	int get_cell_item(const Vector3i &p_position) const;
 	int get_cell_item_orientation(const Vector3i &p_position) const;
+	int get_cell_y_scale(const Vector3i &p_position) const;
 	Basis get_cell_item_basis(const Vector3i &p_position) const;
 	Basis get_basis_with_orthogonal_index(int p_index) const;
 	int get_orthogonal_index_from_basis(const Basis &p_basis) const;

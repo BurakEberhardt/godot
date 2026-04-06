@@ -363,7 +363,7 @@ bool GridMap::get_center_z() const {
 	return center_z;
 }
 
-void GridMap::set_cell_item(const Vector3i &p_position, int p_item, int p_rot) {
+void GridMap::set_cell_item(const Vector3i &p_position, int p_item, int p_rot, int p_yscale) {
 	if (baked_meshes.size() && !recreating_octants) {
 		//if you set a cell item, baked meshes go good bye
 		clear_baked_meshes();
@@ -449,6 +449,7 @@ void GridMap::set_cell_item(const Vector3i &p_position, int p_item, int p_rot) {
 	Cell c;
 	c.item = p_item;
 	c.rot = p_rot;
+	c.yscale = cell_yscale_to_index(p_yscale);
 
 	cell_map[key] = c;
 }
@@ -483,6 +484,23 @@ int GridMap::get_cell_item_orientation(const Vector3i &p_position) const {
 		return -1;
 	}
 	return cell_map[key].rot;
+}
+
+int GridMap::get_cell_y_scale(const Vector3i &p_position) const {
+	ERR_FAIL_INDEX_V(Math::abs(p_position.x), 1 << 20, -1);
+	ERR_FAIL_INDEX_V(Math::abs(p_position.y), 1 << 20, -1);
+	ERR_FAIL_INDEX_V(Math::abs(p_position.z), 1 << 20, -1);
+
+	IndexKey key;
+	key.x = p_position.x;
+	key.y = p_position.y;
+	key.z = p_position.z;
+
+	if (!cell_map.has(key)) {
+		return -1;
+	}
+
+	return index_to_cell_yscale(cell_map[key].yscale);
 }
 
 static const Basis _ortho_bases[24] = {
@@ -711,7 +729,9 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 
 		xform.basis = _ortho_bases[c.rot];
 		xform.set_origin(cellpos * cell_size + ofs);
-		xform.basis.scale(Vector3(cell_scale, cell_scale, cell_scale));
+
+		float y = static_cast<float>(index_to_cell_yscale(c.yscale));
+		xform.basis.scale(Vector3(cell_scale, cell_scale * y, cell_scale));
 		if (baked_meshes.is_empty()) {
 			if (mesh_library->get_item_mesh(c.item).is_valid()) {
 				if (!item_id_to_multimesh_item_placements.has(c.item)) {
@@ -1144,7 +1164,7 @@ void GridMap::_recreate_octant_data() {
 	HashMap<IndexKey, Cell, IndexKey> cell_copy(cell_map);
 	_clear_internal();
 	for (const KeyValue<IndexKey, Cell> &E : cell_copy) {
-		set_cell_item(Vector3i(E.key), E.value.item, E.value.rot);
+		set_cell_item(Vector3i(E.key), E.value.item, E.value.rot, index_to_cell_yscale(E.value.yscale));
 	}
 	recreating_octants = false;
 }
@@ -1241,9 +1261,10 @@ void GridMap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_octant_size", "size"), &GridMap::set_octant_size);
 	ClassDB::bind_method(D_METHOD("get_octant_size"), &GridMap::get_octant_size);
 
-	ClassDB::bind_method(D_METHOD("set_cell_item", "position", "item", "orientation"), &GridMap::set_cell_item, DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("set_cell_item", "position", "item", "orientation", "yscale"), &GridMap::set_cell_item, DEFVAL(0), DEFVAL(1));
 	ClassDB::bind_method(D_METHOD("get_cell_item", "position"), &GridMap::get_cell_item);
 	ClassDB::bind_method(D_METHOD("get_cell_item_orientation", "position"), &GridMap::get_cell_item_orientation);
+	ClassDB::bind_method(D_METHOD("get_cell_y_scale", "position"), &GridMap::get_cell_y_scale);
 	ClassDB::bind_method(D_METHOD("get_cell_item_basis", "position"), &GridMap::get_cell_item_basis);
 	ClassDB::bind_method(D_METHOD("get_basis_with_orthogonal_index", "index"), &GridMap::get_basis_with_orthogonal_index);
 	ClassDB::bind_method(D_METHOD("get_orthogonal_index_from_basis", "basis"), &GridMap::get_orthogonal_index_from_basis);
@@ -1363,9 +1384,10 @@ Array GridMap::get_meshes() const {
 		Transform3D xform;
 
 		xform.basis = _ortho_bases[E.value.rot];
-
 		xform.set_origin(cellpos * cell_size + ofs);
-		xform.basis.scale(Vector3(cell_scale, cell_scale, cell_scale));
+
+		float y = static_cast<float>(index_to_cell_yscale(E.value.yscale));
+		xform.basis.scale(Vector3(cell_scale, cell_scale * y, cell_scale));
 
 		meshes.push_back(xform * mesh_library->get_item_mesh_transform(id));
 		meshes.push_back(mesh);
@@ -1419,7 +1441,9 @@ void GridMap::make_baked_meshes(bool p_gen_lightmap_uv, float p_lightmap_uv_texe
 
 		xform.basis = _ortho_bases[E.value.rot];
 		xform.set_origin(cellpos * cell_size + ofs);
-		xform.basis.scale(Vector3(cell_scale, cell_scale, cell_scale));
+
+		float y = static_cast<float>(index_to_cell_yscale(E.value.yscale));
+		xform.basis.scale(Vector3(cell_scale, cell_scale * y, cell_scale));
 
 		const OctantKey ok = get_octant_key_from_index_key(key);
 
