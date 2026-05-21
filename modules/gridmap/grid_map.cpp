@@ -637,8 +637,16 @@ void GridMap::_octant_transform(const OctantKey &p_key) {
 	}
 #endif // NAVIGATION_3D_DISABLED
 
+	Quaternion gm_quat = get_global_transform().basis.get_rotation_quaternion();
+	Color quat_data = Color(gm_quat.x, gm_quat.y, gm_quat.z, gm_quat.w);
+
 	for (int i = 0; i < g.multimesh_instances.size(); i++) {
 		RS::get_singleton()->instance_set_transform(g.multimesh_instances[i].instance, get_global_transform());
+
+		int count = RS::get_singleton()->multimesh_get_instance_count(g.multimesh_instances[i].multimesh);
+		for (int j = 0; j < count; j++) {
+			RS::get_singleton()->multimesh_instance_set_custom_data(g.multimesh_instances[i].multimesh, j, quat_data);
+		}
 	}
 }
 
@@ -816,13 +824,18 @@ bool GridMap::_octant_update(const OctantKey &p_key) {
 			Octant::MultimeshInstance mmi;
 
 			RID mm = RS::get_singleton()->multimesh_create();
-			RS::get_singleton()->multimesh_allocate_data(mm, E.value.size(), RSE::MULTIMESH_TRANSFORM_3D);
+			RS::get_singleton()->multimesh_allocate_data(mm, E.value.size(), RSE::MULTIMESH_TRANSFORM_3D, false, true);
 			RS::get_singleton()->multimesh_set_mesh(mm, mesh_library->get_item_mesh(E.key)->get_rid());
+
+			Quaternion gm_quat = get_global_transform().basis.get_rotation_quaternion();
+			Color instance_custom_data = Color(gm_quat.x, gm_quat.y, gm_quat.z, gm_quat.w);
 
 			int idx = 0;
 			const LocalVector<MultiMeshItemPlacement> &mm_item_placements = E.value;
 			for (const MultiMeshItemPlacement &mm_item_placement : mm_item_placements) {
 				RS::get_singleton()->multimesh_instance_set_transform(mm, idx, mm_item_placement.transform);
+				RS::get_singleton()->multimesh_instance_set_custom_data(mm, idx, instance_custom_data);
+
 #ifdef TOOLS_ENABLED
 
 				Octant::MultimeshInstance::Item it;
