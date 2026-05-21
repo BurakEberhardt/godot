@@ -320,14 +320,18 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 		last_shader = shader_rid;
 	}
 	if (last_texture != p_texture->get_rid()) {
-		RS::get_singleton()->material_set_param(get_material(), "texture_albedo", p_texture->get_rid());
-		RS::get_singleton()->material_set_param(get_material(), "albedo_texture_size", Vector2i(p_texture->get_width(), p_texture->get_height()));
+		set_shader_param("texture_albedo", p_texture->get_rid());
+		set_shader_param("albedo_texture_size", Vector2i(p_texture->get_width(), p_texture->get_height()));
+		// RS::get_singleton()->material_set_param(get_material(), "texture_albedo", p_texture->get_rid());
+		// RS::get_singleton()->material_set_param(get_material(), "albedo_texture_size", Vector2i(p_texture->get_width(), p_texture->get_height()));
 		last_texture = p_texture->get_rid();
 	}
 	if (get_alpha_cut_mode() == ALPHA_CUT_DISABLED) {
 		RS::get_singleton()->material_set_render_priority(get_material(), get_render_priority());
 		RS::get_singleton()->mesh_surface_set_material(mesh, 0, get_material());
 	}
+
+	_apply_shader_params();
 }
 
 void SpriteBase3D::set_custom_shader(const Ref<Shader> &p_shader) {
@@ -337,6 +341,69 @@ void SpriteBase3D::set_custom_shader(const Ref<Shader> &p_shader) {
 
 Ref<Shader> SpriteBase3D::get_custom_shader() const {
 	return custom_shader;
+}
+
+void SpriteBase3D::set_shader_param(const StringName &p_name, const Variant &p_value) {
+	shader_params[p_name] = p_value;
+	const RID material = get_material();
+	if (material.is_valid()) {
+		RS::get_singleton()->material_set_param(material, p_name, p_value);
+	}
+}
+
+Variant SpriteBase3D::get_shader_param(const StringName &p_name) const {
+	if (shader_params.has(p_name)) return shader_params[p_name];
+	return {};
+}
+
+void SpriteBase3D::set_shader_params(const Dictionary &p_params) {
+	shader_params = p_params;
+	_apply_shader_params();
+}
+
+Dictionary SpriteBase3D::get_shader_params() const {
+	return shader_params;
+}
+
+void SpriteBase3D::_apply_shader_params() {
+	const RID material = get_material();
+	if (!material.is_valid()) return;
+	Array keys = shader_params.keys();
+	for (const auto &key : keys) {
+		RS::get_singleton()->material_set_param(material, key, shader_params[key]);
+	}
+}
+
+void SpriteBase3D::_get_property_list(List<PropertyInfo> *p_list) const {
+	if (!custom_shader.is_valid()) return;
+
+	List<PropertyInfo> uniforms;
+	custom_shader->get_shader_uniform_list(&uniforms);
+
+	for (const PropertyInfo &E : uniforms) {
+		PropertyInfo pi = E;
+		pi.name = "shader_param/" + E.name;
+		pi.usage = PROPERTY_USAGE_EDITOR;
+		p_list->push_back(pi);
+	}
+}
+
+bool SpriteBase3D::_set(const StringName &p_name, const Variant &p_value) {
+	String name = p_name;
+	if (name.begins_with("shader_param/")) {
+		set_shader_param(name.substr(13), p_value); // strip prefix
+		return true;
+	}
+	return false;
+}
+
+bool SpriteBase3D::_get(const StringName &p_name, Variant &r_ret) const {
+	String name = p_name;
+	if (name.begins_with("shader_param/")) {
+		r_ret = get_shader_param(name.substr(13));
+		return true;
+	}
+	return false;
 }
 
 void SpriteBase3D::set_centered(bool p_center) {
@@ -665,6 +732,12 @@ void SpriteBase3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_custom_shader", "shader"), &SpriteBase3D::set_custom_shader);
 	ClassDB::bind_method(D_METHOD("get_custom_shader"), &SpriteBase3D::get_custom_shader);
 
+	ClassDB::bind_method(D_METHOD("set_shader_param", "name", "value"), &SpriteBase3D::set_shader_param);
+	ClassDB::bind_method(D_METHOD("get_shader_param", "name"), &SpriteBase3D::get_shader_param);
+
+	ClassDB::bind_method(D_METHOD("set_shader_params", "params"), &SpriteBase3D::set_shader_params);
+	ClassDB::bind_method(D_METHOD("get_shader_params"), &SpriteBase3D::get_shader_params);
+
 	ClassDB::bind_method(D_METHOD("set_centered", "centered"), &SpriteBase3D::set_centered);
 	ClassDB::bind_method(D_METHOD("is_centered"), &SpriteBase3D::is_centered);
 
@@ -720,6 +793,7 @@ void SpriteBase3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("generate_triangle_mesh"), &SpriteBase3D::generate_triangle_mesh);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "custom_shader", PROPERTY_HINT_RESOURCE_TYPE, "Shader"), "set_custom_shader", "get_custom_shader");
+	ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "shader_params",PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE), "set_shader_params", "get_shader_params");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "centered"), "set_centered", "is_centered");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset", PROPERTY_HINT_NONE, "suffix:px"), "set_offset", "get_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "relative_offset", PROPERTY_HINT_NONE), "set_relative_offset", "get_relative_offset");

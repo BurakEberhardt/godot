@@ -99,7 +99,9 @@ private:
 	void _im_update();
 
 	void _propagate_color_changed();
+	void _apply_shader_params();
 
+	Dictionary shader_params;
 	Ref<Shader> custom_shader;
 
 protected:
@@ -124,8 +126,18 @@ protected:
 	void _queue_redraw();
 
 public:
+	void _get_property_list(List<PropertyInfo> *p_list) const;
+	bool _set(const StringName &p_name, const Variant &p_value);
+	bool _get(const StringName &p_name, Variant &r_ret) const;
+
 	void set_custom_shader(const Ref<Shader> &p_shader);
 	Ref<Shader> get_custom_shader() const;
+
+	void set_shader_param(const StringName &p_name, const Variant &p_value);
+	Variant get_shader_param(const StringName &p_name) const;
+
+	void set_shader_params(const Dictionary &p_params);
+	Dictionary get_shader_params() const;
 
 	void set_centered(bool p_center);
 	bool is_centered() const;
