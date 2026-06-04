@@ -32,6 +32,7 @@
 
 #include "core/input/input.h"
 #include "core/io/marshalls.h"
+#include "core/io/resource_loader.h"
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
 #include "editor/docks/inspector_dock.h"
@@ -250,6 +251,21 @@ void EditorPropertyArray::initialize_array(Variant &p_array) {
 		p_array = array;
 	} else {
 		VariantInternal::initialize(&p_array, array_type);
+	}
+}
+
+void EditorPropertyArray::_update_slots_size() {
+	float name_size = 0;
+	for (Slot &slot : slots) {
+		if (name_size == 0) {
+			int max_index = (page_index + 1) * page_length - 1;
+			const String ms = String("M").repeat(itos(max_index).length());
+
+			Ref<Font> font = theme_cache.font;
+			int font_size = theme_cache.font_size;
+			name_size = slots[0].reorder_button->get_minimum_size().x + theme_cache.horizontal_separation + font->get_string_size(ms, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x;
+		}
+		slot.prop->set_name_fixed_size(name_size);
 	}
 }
 
@@ -523,6 +539,7 @@ void EditorPropertyArray::update_property() {
 				}
 				new_prop->set_selectable(false);
 				new_prop->set_use_folding(is_using_folding());
+				new_prop->set_name_split_ratio(0.0);
 				new_prop->connect(SNAME("property_changed"), callable_mp(this, &EditorPropertyArray::_property_changed));
 				new_prop->connect(SNAME("object_id_selected"), callable_mp(this, &EditorPropertyArray::_object_id_selected));
 				if (value_type == Variant::OBJECT) {
@@ -551,6 +568,9 @@ void EditorPropertyArray::update_property() {
 				changing_type_index = EditorPropertyArrayObject::NOT_CHANGING_TYPE;
 			}
 			slot.prop->update_property();
+		}
+		if (is_inside_tree()) {
+			_update_slots_size();
 		}
 
 		updating = false;
@@ -789,6 +809,7 @@ void EditorPropertyArray::_notification(int p_what) {
 					slot.remove_button->set_button_icon(get_editor_theme_icon(SNAME("Remove")));
 				}
 			}
+			_update_slots_size();
 		} break;
 		case NOTIFICATION_DRAG_BEGIN: {
 			if (is_visible_in_tree()) {
@@ -1174,7 +1195,7 @@ void EditorPropertyDictionary::_change_type_menu(int p_index) {
 }
 
 void EditorPropertyDictionary::setup(PropertyHint p_hint, const String &p_hint_string) {
-	PackedStringArray types = p_hint_string.split(";");
+	PackedStringArray types = p_hint_string.split(";", true, 1);
 	if (types.size() > 0 && !types[0].is_empty()) {
 		String key = types[0];
 		int hint_key_subtype_separator = key.find_char(':');
@@ -1399,6 +1420,8 @@ void EditorPropertyDictionary::update_property() {
 					new_prop->set_use_folding(is_using_folding());
 					new_prop->set_h_size_flags(SIZE_EXPAND_FILL);
 					new_prop->set_draw_label(false);
+					new_prop->set_mouse_filter(MOUSE_FILTER_PASS);
+					new_prop->set_mouse_behavior_recursive(MOUSE_BEHAVIOR_DISABLED);
 					EditorPropertyArray *arr_prop = Object::cast_to<EditorPropertyArray>(new_prop);
 					if (arr_prop) {
 						arr_prop->set_preview_value(true);
@@ -1473,7 +1496,7 @@ void EditorPropertyDictionary::update_property() {
 
 			// We need to grab the focus of the property that is being changed, even if the type didn't actually changed.
 			// Otherwise, focus will stay on the change type button, which is not very user friendly.
-			if (changing_type_index == slot.index) {
+			if (changing_type_index == slot.index && (!change_type || !change_type->is_visible())) {
 				callable_mp(slot.prop, &EditorProperty::grab_focus).call_deferred(0);
 				changing_type_index = EditorPropertyDictionaryObject::NOT_CHANGING_TYPE; // Reset to avoid grabbing focus again.
 			}

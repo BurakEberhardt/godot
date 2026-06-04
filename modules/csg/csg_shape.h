@@ -39,7 +39,7 @@
 #include "scene/resources/3d/concave_polygon_shape_3d.h"
 #endif // PHYSICS_3D_DISABLED
 
-#include "thirdparty/misc/mikktspace.h"
+#include <thirdparty/misc/mikktspace.h>
 
 class Mesh;
 class NavigationMesh;
@@ -117,6 +117,9 @@ private:
 	void _on_transform_changed();
 	Vector<Vector3> _get_brush_collision_faces();
 #endif // PHYSICS_3D_DISABLED
+
+	void _build_surfaces_smoothed(CSGBrush *p_brush, Vector<ShapeUpdateSurface> &r_surfaces, Vector<int> &r_face_count);
+	void _build_surfaces_default(CSGBrush *p_brush, Vector<ShapeUpdateSurface> &r_surfaces, Vector<int> &r_face_count);
 
 protected:
 	void _notification(int p_what);

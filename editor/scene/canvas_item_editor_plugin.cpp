@@ -33,6 +33,7 @@
 #include "core/config/engine.h"
 #include "core/config/project_settings.h"
 #include "core/input/input.h"
+#include "core/io/resource_loader.h"
 #include "core/object/callable_mp.h"
 #include "core/object/class_db.h"
 #include "core/os/keyboard.h"
@@ -49,6 +50,7 @@
 #include "editor/inspector/editor_context_menu_plugin.h"
 #include "editor/plugins/editor_plugin_list.h"
 #include "editor/run/editor_run_bar.h"
+#include "editor/scene/gui/control_editor_plugin.h"
 #include "editor/script/script_editor_plugin.h"
 #include "editor/settings/editor_settings.h"
 #include "editor/themes/editor_scale.h"
@@ -67,6 +69,7 @@
 #include "scene/gui/separator.h"
 #include "scene/gui/split_container.h"
 #include "scene/gui/subviewport_container.h"
+#include "scene/gui/texture_button.h"
 #include "scene/gui/view_panner.h"
 #include "scene/main/canvas_layer.h"
 #include "scene/main/scene_tree.h"
@@ -1661,7 +1664,7 @@ bool CanvasItemEditor::_gui_input_open_scene_on_double_click(const Ref<InputEven
 		if (selection.size() == 1) {
 			CanvasItem *ci = selection.front()->get();
 			if (ci->is_instance() && ci != EditorNode::get_singleton()->get_edited_scene()) {
-				EditorNode::get_singleton()->load_scene(ci->get_scene_file_path());
+				EditorNode::get_singleton()->open_scene(ci->get_scene_file_path());
 				return true;
 			}
 		}
@@ -1962,6 +1965,19 @@ bool CanvasItemEditor::_gui_input_resize(const Ref<InputEvent> &p_event) {
 					current_begin.y = 2.0 * center.y - current_end.y;
 				}
 			}
+
+			bool anchors_mode = ControlEditorToolbar::get_singleton()->is_anchors_mode_enabled();
+			if (anchors_mode) {
+				Control *control = Object::cast_to<Control>(ci);
+				if (control) {
+					Size2 parent_rect_size = control->get_parent_anchorable_rect().size;
+					if (parent_rect_size.x == 0.0 || parent_rect_size.y == 0.0) {
+						EditorToaster::get_singleton()->popup_str(TTR("Can't modify anchor offsets when the parent has a size of 0. Disable the anchors mode in the toolbar."), EditorToaster::SEVERITY_WARNING);
+						return true;
+					}
+				}
+			}
+
 			ci->_edit_set_rect(Rect2(current_begin, current_end - current_begin));
 			return true;
 		}
@@ -4350,7 +4366,7 @@ void CanvasItemEditor::_update_editor_settings() {
 	simple_panning = EDITOR_GET("editors/panning/simple_panning");
 	panner->setup((ViewPanner::ControlScheme)EDITOR_GET("editors/panning/2d_editor_panning_scheme").operator int(), ED_GET_SHORTCUT("canvas_item_editor/pan_view"), simple_panning);
 	panner->set_scroll_speed(EDITOR_GET("editors/panning/2d_editor_pan_speed"));
-	panner->setup_warped_panning(get_viewport(), EDITOR_GET("editors/panning/warped_mouse_panning"));
+	panner->setup_warped_panning(this, EDITOR_GET("editors/panning/warped_mouse_panning"));
 	panner->set_zoom_style((ViewPanner::ZoomStyle)EDITOR_GET("editors/panning/zoom_style").operator int());
 
 	// Compute the ruler width here so we can reuse the result throughout the various draw functions.
@@ -5596,7 +5612,7 @@ void CanvasItemEditor::focus_selection() {
 
 void CanvasItemEditor::center_at(const Point2 &p_pos) {
 	Vector2 offset = viewport->get_size() / 2 - EditorNode::get_singleton()->get_scene_root()->get_global_canvas_transform().xform(p_pos);
-	view_offset -= (offset / zoom).round();
+	view_offset = (view_offset - offset / zoom).round();
 	update_viewport();
 }
 
@@ -6460,7 +6476,7 @@ void CanvasItemEditorViewport::_perform_drop_data() {
 		Ref<PackedScene> scene = res;
 		if (scene.is_valid()) {
 			// Without root node act the same as "Load Inherited Scene".
-			Error err = EditorNode::get_singleton()->load_scene(path, false, true);
+			Error err = EditorNode::get_singleton()->open_scene(path, false, true);
 			if (err != OK) {
 				accept->set_text(vformat(TTR("Error instantiating scene from %s."), path.get_file()));
 				accept->popup_centered();

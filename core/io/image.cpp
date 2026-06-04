@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "image.h"
+#include "image.compat.inc"
 
 #include "core/config/project_settings.h"
 #include "core/error/error_macros.h"
@@ -92,12 +93,12 @@ const char *Image::format_names[Image::FORMAT_MAX] = {
 // External VRAM compression function pointers.
 
 void (*Image::_image_compress_bc_func)(Image *, Image::UsedChannels) = nullptr;
-void (*Image::_image_compress_bptc_func)(Image *, Image::UsedChannels) = nullptr;
+void (*Image::_image_compress_bptc_func)(Image *, Image::UsedChannels, Image::BPTCFormat) = nullptr;
 void (*Image::_image_compress_etc1_func)(Image *) = nullptr;
 void (*Image::_image_compress_etc2_func)(Image *, Image::UsedChannels) = nullptr;
 void (*Image::_image_compress_astc_func)(Image *, Image::ASTCFormat) = nullptr;
 
-Error (*Image::_image_compress_bptc_rd_func)(Image *, Image::UsedChannels) = nullptr;
+Error (*Image::_image_compress_bptc_rd_func)(Image *, Image::UsedChannels, Image::BPTCFormat) = nullptr;
 Error (*Image::_image_compress_bc_rd_func)(Image *, Image::UsedChannels) = nullptr;
 
 // External VRAM decompression function pointers.
@@ -2820,19 +2821,18 @@ Vector<uint8_t> Image::save_jpg_to_buffer(float p_quality) const {
 	return save_jpg_buffer_func(Ref<Image>((Image *)this), p_quality);
 }
 
-Error Image::save_exr(const String &p_path, bool p_grayscale) const {
+Error Image::save_exr(const String &p_path, bool p_grayscale, bool p_color_image, float p_max_value) const {
 	if (save_exr_func == nullptr) {
 		return ERR_UNAVAILABLE;
 	}
-
-	return save_exr_func(p_path, Ref<Image>((Image *)this), p_grayscale);
+	return save_exr_func(p_path, Ref<Image>((Image *)this), p_grayscale, p_color_image, p_max_value);
 }
 
-Vector<uint8_t> Image::save_exr_to_buffer(bool p_grayscale) const {
+Vector<uint8_t> Image::save_exr_to_buffer(bool p_grayscale, bool p_color_image, float p_max_value) const {
 	if (save_exr_buffer_func == nullptr) {
 		return Vector<uint8_t>();
 	}
-	return save_exr_buffer_func(Ref<Image>((Image *)this), p_grayscale);
+	return save_exr_buffer_func(Ref<Image>((Image *)this), p_grayscale, p_color_image, p_max_value);
 }
 
 Error Image::save_dds(const String &p_path) const {
@@ -2949,6 +2949,10 @@ Error Image::compress(CompressMode p_mode, CompressSource p_source, ASTCFormat p
 }
 
 Error Image::compress_from_channels(CompressMode p_mode, UsedChannels p_channels, ASTCFormat p_astc_format) {
+	return _compress_from_channels(p_mode, p_channels, p_astc_format, BPTC_DETECT);
+}
+
+Error Image::_compress_from_channels(CompressMode p_mode, UsedChannels p_channels, ASTCFormat p_astc_format, BPTCFormat p_bptc_format) {
 	ERR_FAIL_COND_V(data.is_empty(), ERR_INVALID_DATA);
 
 	// RenderingDevice only.
@@ -2957,7 +2961,7 @@ Error Image::compress_from_channels(CompressMode p_mode, UsedChannels p_channels
 			case COMPRESS_BPTC: {
 				// BC7 is unsupported currently.
 				if ((format >= FORMAT_RF && format <= FORMAT_RGBE9995) && _image_compress_bptc_rd_func) {
-					Error result = _image_compress_bptc_rd_func(this, p_channels);
+					Error result = _image_compress_bptc_rd_func(this, p_channels, p_bptc_format);
 
 					// If the image was compressed successfully, we return here. If not, we fall back to the default compression scheme.
 					if (result == OK) {
@@ -2996,7 +3000,7 @@ Error Image::compress_from_channels(CompressMode p_mode, UsedChannels p_channels
 		} break;
 		case COMPRESS_BPTC: {
 			ERR_FAIL_NULL_V(_image_compress_bptc_func, ERR_UNAVAILABLE);
-			_image_compress_bptc_func(this, p_channels);
+			_image_compress_bptc_func(this, p_channels, p_bptc_format);
 		} break;
 		case COMPRESS_ASTC: {
 			ERR_FAIL_NULL_V(_image_compress_astc_func, ERR_UNAVAILABLE);
@@ -3879,8 +3883,8 @@ void Image::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("save_png_to_buffer"), &Image::save_png_to_buffer);
 	ClassDB::bind_method(D_METHOD("save_jpg", "path", "quality"), &Image::save_jpg, DEFVAL(0.75));
 	ClassDB::bind_method(D_METHOD("save_jpg_to_buffer", "quality"), &Image::save_jpg_to_buffer, DEFVAL(0.75));
-	ClassDB::bind_method(D_METHOD("save_exr", "path", "grayscale"), &Image::save_exr, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("save_exr_to_buffer", "grayscale"), &Image::save_exr_to_buffer, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("save_exr", "path", "grayscale", "color_image", "max_linear_value"), &Image::save_exr, DEFVAL(false), DEFVAL(false), DEFVAL(-1.0));
+	ClassDB::bind_method(D_METHOD("save_exr_to_buffer", "grayscale", "color_image", "max_linear_value"), &Image::save_exr_to_buffer, DEFVAL(false), DEFVAL(false), DEFVAL(-1.0));
 	ClassDB::bind_method(D_METHOD("save_dds", "path"), &Image::save_dds);
 	ClassDB::bind_method(D_METHOD("save_dds_to_buffer"), &Image::save_dds_to_buffer);
 

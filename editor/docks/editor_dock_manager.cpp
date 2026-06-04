@@ -31,7 +31,6 @@
 #include "editor_dock_manager.h"
 
 #include "core/object/callable_mp.h"
-#include "core/object/class_db.h"
 #include "editor/docks/dock_tab_container.h"
 #include "editor/docks/editor_dock.h"
 #include "editor/editor_node.h"
@@ -42,6 +41,7 @@
 #include "scene/gui/box_container.h"
 #include "scene/gui/button.h"
 #include "scene/gui/label.h"
+#include "scene/gui/popup_menu.h"
 #include "scene/gui/split_container.h"
 #include "scene/gui/tab_container.h"
 #include "scene/main/window.h"
@@ -121,6 +121,10 @@ void DockSplitContainer::remove_child_notify(Node *p_child) {
 
 	child_control->disconnect(SceneStringName(visibility_changed), callable_mp(this, &DockSplitContainer::_update_visibility));
 	_update_visibility();
+}
+
+Control *DockSplitContainer::get_child_as_control(int p_index) const {
+	return Object::cast_to<Control>(get_child(p_index));
 }
 
 DockSplitContainer::DockSplitContainer() {
@@ -271,10 +275,12 @@ EditorDock *EditorDockManager::_close_window(WindowWrapper *p_wrapper) {
 void EditorDockManager::_open_dock_in_window(EditorDock *p_dock, bool p_show_window, bool p_reset_size) {
 	ERR_FAIL_NULL(p_dock);
 
-	Size2 borders = Size2(4, 4) * EDSCALE;
-	// Remember size and position before removing it from the main window.
-	Size2 dock_size = p_dock->get_size() + borders * 2;
-	Point2 dock_screen_pos = p_dock->get_screen_position();
+	DockTabContainer *parent_container = p_dock->get_parent_container();
+	const Rect2 floating_rect = parent_container
+			? parent_container->get_floating_dock_rect(p_dock)
+			: DockTabContainer::get_default_floating_dock_rect(p_dock);
+	Size2 dock_size = floating_rect.size;
+	Point2 dock_screen_pos = floating_rect.position;
 
 	WindowWrapper *wrapper = memnew(WindowWrapper);
 	wrapper->set_window_title(vformat(TTR("%s - Godot Engine"), TTR(p_dock->get_display_title())));
@@ -479,22 +485,40 @@ void EditorDockManager::save_docks_to_config(Ref<ConfigFile> p_layout, const Str
 	}
 	p_layout->set_value(p_section, "dock_closed", closed_docks_dump);
 
-	// Save SplitContainer offsets.
-	for (int i = 0; i < vsplits.size(); i++) {
-		if (vsplits[i]->is_visible_in_tree()) {
-			p_layout->set_value(p_section, "dock_split_" + itos(i + 1), vsplits[i]->get_split_offset());
-		}
-	}
+	// Distraction-free mode hides both the sides and lower docks, so skip to avoid overriding those values.
+	if (!EditorNode::get_singleton()->is_distraction_free_mode_enabled()) {
+		// Save SplitContainer offsets.
 
-	PackedInt32Array split_offsets = main_hsplit->get_split_offsets();
-	int index = 0;
-	for (int i = 0; i < vsplits.size(); i++) {
-		int value = 0;
-		if (vsplits[i]->is_visible() && index < split_offsets.size()) {
-			value = split_offsets[index] / EDSCALE;
-			index++;
+		for (int i = 0; i < vsplits.size(); i++) {
+			if (vsplits[i]->is_visible_in_tree()) {
+				p_layout->set_value(p_section, "dock_split_" + itos(i + 1), vsplits[i]->get_split_offset());
+			}
 		}
-		p_layout->set_value(p_section, "dock_hsplit_" + itos(i + 1), value);
+
+		PackedInt32Array split_offsets = main_hsplit->get_split_offsets();
+		int index = 0;
+		for (int i = 0; i < vsplits.size(); i++) {
+			int value = 0;
+			if (vsplits[i]->is_visible() && index < split_offsets.size()) {
+				value = split_offsets[index] / EDSCALE;
+				index++;
+			}
+			p_layout->set_value(p_section, "dock_hsplit_" + itos(i + 1), value);
+		}
+
+		// The main v-split contains only one singular split.
+		int value = 0;
+		if (main_vsplit->get_child_as_control(1)->is_visible()) {
+			value = main_vsplit->get_split_offsets()[0];
+		}
+		p_layout->set_value(p_section, "dock_main_split", value);
+
+		// Same for the bottom docks.
+		value = 0;
+		if (bottom_hsplit->get_child_as_control(1)->is_visible()) {
+			value = bottom_hsplit->get_split_offsets()[0];
+		}
+		p_layout->set_value(p_section, "dock_bottom_split", value);
 	}
 }
 
@@ -555,12 +579,14 @@ void EditorDockManager::load_docks_from_config(Ref<ConfigFile> p_layout, const S
 
 	// Set the selected tabs.
 	for (int i = 0; i < EditorDock::DOCK_SLOT_MAX; i++) {
-		int selected_tab_idx = p_layout->get_value(p_section, DockTabContainer::get_config_key(i) + "_selected_tab_idx", 0);
+		int selected_tab_idx = p_layout->get_value(p_section, DockTabContainer::get_config_key(i) + "_selected_tab_idx", -1);
 		dock_slots[i]->load_selected_tab(selected_tab_idx);
 	}
 
 	// Load SplitContainer offsets.
+
 	PackedInt32Array offsets;
+
 	for (int i = 0; i < vsplits.size(); i++) {
 		if (!p_layout->has_section_key(p_section, "dock_split_" + itos(i + 1))) {
 			continue;
@@ -575,6 +601,18 @@ void EditorDockManager::load_docks_from_config(Ref<ConfigFile> p_layout, const S
 		}
 	}
 	main_hsplit->set_split_offsets(offsets);
+
+	// The main v-split contains only one singular split.
+	if (main_vsplit->get_child_as_control(1)->is_visible()) {
+		offsets = { p_layout->get_value(p_section, "dock_main_split", 0) };
+		main_vsplit->set_split_offsets(offsets);
+	}
+
+	// Same for the bottom docks.
+	if (bottom_hsplit->get_child_as_control(1)->is_visible()) {
+		offsets = { p_layout->get_value(p_section, "dock_bottom_split", 0) };
+		bottom_hsplit->set_split_offsets(offsets);
+	}
 
 	update_docks_menu();
 }
@@ -756,8 +794,18 @@ void EditorDockManager::add_vsplit(DockSplitContainer *p_split) {
 	p_split->connect("dragged", callable_mp(this, &EditorDockManager::_dock_split_dragged));
 }
 
-void EditorDockManager::set_hsplit(DockSplitContainer *p_split) {
+void EditorDockManager::set_main_vsplit(DockSplitContainer *p_split) {
+	main_vsplit = p_split;
+	p_split->connect("dragged", callable_mp(this, &EditorDockManager::_dock_split_dragged));
+}
+
+void EditorDockManager::set_main_hsplit(DockSplitContainer *p_split) {
 	main_hsplit = p_split;
+	p_split->connect("dragged", callable_mp(this, &EditorDockManager::_dock_split_dragged));
+}
+
+void EditorDockManager::set_bottom_hsplit(DockSplitContainer *p_split) {
+	bottom_hsplit = p_split;
 	p_split->connect("dragged", callable_mp(this, &EditorDockManager::_dock_split_dragged));
 }
 
@@ -1061,14 +1109,14 @@ void DockSlotGrid::_notification(int p_what) {
 					draw_rect(slot_rect, used_dock_color);
 				}
 
-				real_t tab_width = ((slot_rect.size.x - (max_tabs - 1) * TAB_MARGIN) / max_tabs) * EDSCALE;
-				real_t initial_offset = (slot_rect.size.x - (max_tabs * tab_width + (max_tabs - 1) * TAB_MARGIN)) * 0.5;
+				real_t tab_width = ((slot_rect.size.x - (max_tabs - 1) * TAB_MARGIN * EDSCALE) / max_tabs);
+				real_t initial_offset = (slot_rect.size.x - (max_tabs * tab_width + (max_tabs - 1) * TAB_MARGIN * EDSCALE)) * 0.5;
 
 				for (int j = 0; j < tabs_to_draw; j++) {
 					real_t pos_x = is_layout_rtl()
-							? slot_rect.size.x - (initial_offset + (j + 1) * tab_width + j * TAB_MARGIN)
-							: initial_offset + j * (tab_width + TAB_MARGIN);
-					const Rect2 tab_rect = Rect2(slot_rect.position + Vector2(pos_x, -MARGINS.y + MARGINS.y / 4), Vector2(tab_width, MARGINS.y / 2));
+							? slot_rect.size.x - (initial_offset + (j + 1) * tab_width + j * TAB_MARGIN * EDSCALE)
+							: initial_offset + j * (tab_width + TAB_MARGIN * EDSCALE);
+					const Rect2 tab_rect = Rect2(slot_rect.position + Vector2(pos_x, -MARGINS.y * EDSCALE + MARGINS.y * EDSCALE / 4), Vector2(tab_width, MARGINS.y * EDSCALE / 2));
 					if (is_context_slot && context_tab_index == j) {
 						draw_rect(tab_rect, tab_selected_color);
 					} else if (is_slot_available) {
@@ -1129,5 +1177,5 @@ void DockSlotGrid::gui_input(const Ref<InputEvent> &p_event) {
 }
 
 Size2 DockSlotGrid::get_minimum_size() const {
-	return GRID_SIZE * CELL_SIZE + (GRID_SIZE - Vector2i(1, 0)) * MARGINS;
+	return GRID_SIZE * CELL_SIZE * EDSCALE + (GRID_SIZE - Vector2i(1, 0)) * MARGINS * EDSCALE;
 }

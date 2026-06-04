@@ -147,6 +147,7 @@ private:
 	bool visible = true;
 	bool parent_visible_in_tree = true;
 	bool disable_folding = false;
+	bool accepts_children = true;
 	int custom_min_height = 0;
 
 	TreeItem *parent = nullptr; // Parent item.
@@ -163,7 +164,7 @@ private:
 
 	void _changed_notify(int p_cell);
 	void _changed_notify();
-	void _cell_selected(int p_cell);
+	void _cell_selected(int p_cell, bool p_set_as_cursor);
 	void _cell_deselected(int p_cell);
 	void _handle_visibility_changed(bool p_visible);
 	void _propagate_visibility_changed(bool p_parent_visible_in_tree);
@@ -223,6 +224,7 @@ protected:
 	static void _bind_methods();
 
 #ifndef DISABLE_DEPRECATED
+	void _select_bind_compat_119367(int p_column);
 	void _add_button_bind_compat_76829(int p_column, const Ref<Texture2D> &p_button, int p_id, bool p_disabled, const String &p_tooltip);
 	static void _bind_compatibility_methods();
 #endif
@@ -375,7 +377,7 @@ public:
 
 	bool is_selected(int p_column);
 	bool is_any_column_selected() const;
-	void select(int p_column);
+	void select(int p_column, bool p_set_as_cursor = true);
 	void deselect(int p_column);
 	void set_as_cursor(int p_column);
 
@@ -411,6 +413,9 @@ public:
 	void set_disable_folding(bool p_disable);
 	bool is_folding_disabled() const;
 
+	void set_accept_children(bool p_allowed);
+	bool is_accepting_children() const;
+
 	Size2 get_minimum_size(int p_column);
 
 	// Item manipulation.
@@ -424,6 +429,7 @@ public:
 	TreeItem *get_next() const;
 	TreeItem *get_parent() const;
 	TreeItem *get_first_child() const;
+	TreeItem *get_last_child() const;
 
 	TreeItem *get_prev_in_tree(bool p_wrap = false);
 	TreeItem *get_next_in_tree(bool p_wrap = false);
@@ -492,6 +498,8 @@ private:
 
 	TreeItem *drop_mode_over = nullptr;
 	int drop_mode_section = 0;
+	bool drop_mode_unchanged = false;
+	bool dragging_within_self = false;
 
 	TreeItem *single_select_defer = nullptr;
 	int single_select_defer_column = 0;
@@ -521,6 +529,7 @@ private:
 	int blocked = 0;
 
 	int drop_mode_flags = 0;
+	static constexpr int COLUMN_NOT_FOUND = -100;
 
 	struct ColumnInfo {
 		mutable RID accessibility_col_element;
@@ -548,8 +557,11 @@ private:
 
 	bool popup_edit_committed = true;
 	RID accessibility_scroll_element;
-	RID header_ci; // Separate canvas item for drawing column headers
-	RID content_ci; // Separate canvas item for drawing tree rows
+	RID stylebox_ci; // Separate canvas item for drawing native styleboxes.
+	RID custom_ci; // Separate canvas item for drawing custom content.
+	RID header_ci; // Separate canvas item for drawing column headers.
+	RID content_ci; // Separate canvas item for drawing tree rows.
+	RID drop_indicator_ci;
 
 	VBoxContainer *popup_editor_vb = nullptr;
 	Popup *popup_editor = nullptr;
@@ -592,7 +604,7 @@ private:
 
 	void item_edited(int p_column, TreeItem *p_item, MouseButton p_custom_mouse_index = MouseButton::NONE);
 	void item_changed(int p_column, TreeItem *p_item);
-	void item_selected(int p_column, TreeItem *p_item);
+	void item_selected(int p_column, TreeItem *p_item, bool p_set_as_cursor);
 	void item_deselected(int p_column, TreeItem *p_item);
 	void update_min_size_for_item_change();
 
@@ -646,6 +658,7 @@ private:
 		Color font_selected_color;
 		Color font_disabled_color;
 		Color guide_color;
+		Color drop_on_item_color;
 		Color drop_position_color;
 		Color relationship_line_color;
 		Color parent_hl_line_color;
@@ -732,6 +745,7 @@ private:
 	String incr_search;
 	bool cursor_can_exit_tree = true;
 	void _do_incr_search(const String &p_add);
+	void _incr_search_as_needed(const Ref<InputEventKey> &p_event_key);
 
 	TreeItem *_search_item_text(TreeItem *p_at, const String &p_find, int *r_col, bool p_selectable, bool p_backwards = false);
 
@@ -757,6 +771,7 @@ private:
 	bool click_handled = false;
 	bool allow_rmb_select = false;
 	bool scrolling = false;
+	bool using_native_touch = true;
 
 	ScrollHintMode scroll_hint_mode = SCROLL_HINT_MODE_DISABLED;
 	bool tile_scroll_hint = false;
@@ -834,6 +849,7 @@ public:
 	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 
 	virtual String get_tooltip(const Point2 &p_pos) const override;
+	virtual AutoTranslateMode get_tooltip_auto_translate_mode_at(const Point2 &p_at) const override;
 
 	virtual bool can_drop_data(const Point2 &p_point, const Variant &p_data) const override;
 	virtual Variant get_drag_data(const Point2 &p_point) override;
@@ -891,6 +907,8 @@ public:
 
 	void set_column_titles_visible(bool p_show);
 	bool are_column_titles_visible() const;
+
+	RID get_custom_drawing_canvas_item() const { return custom_ci; }
 
 	TreeItem *get_edited() const;
 	int get_edited_column() const;

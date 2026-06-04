@@ -715,7 +715,6 @@ public:
 			PackedStringArray hint_enum_names;
 			int instance_index = 0;
 			String group;
-			String subgroup;
 
 			_FORCE_INLINE_ bool is_texture() const {
 				// Order is assigned to -1 for texture uniforms.
@@ -1067,7 +1066,6 @@ private:
 	bool is_shader_inc = false;
 
 	String current_uniform_group_name;
-	String current_uniform_subgroup_name;
 
 	VaryingFunctionNames varying_function_names;
 	uint32_t base_varying_index = 0;

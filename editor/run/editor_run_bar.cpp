@@ -33,11 +33,12 @@
 #include "core/config/engine.h"
 #include "core/config/project_settings.h"
 #include "core/object/callable_mp.h"
-#include "core/object/class_db.h"
 #include "editor/debugger/editor_debugger_node.h"
 #include "editor/debugger/script_editor_debugger.h"
 #include "editor/editor_node.h"
 #include "editor/editor_string_names.h"
+#include "editor/export/editor_export_platform.h"
+#include "editor/export/editor_export_preset.h"
 #include "editor/gui/editor_bottom_panel.h"
 #include "editor/gui/editor_quick_open_dialog.h"
 #include "editor/gui/editor_toaster.h"
@@ -263,6 +264,18 @@ void EditorRunBar::_run_scene(const String &p_scene_path, const Vector<String> &
 	}
 
 	_reset_play_buttons();
+
+	String resource_path = ProjectSettings::get_singleton()->get_resource_path();
+	if (!resource_path.is_empty()) {
+		String project_file_path = resource_path.path_join("project.godot");
+		if (!FileAccess::exists(project_file_path)) {
+			// TODO: Try to recover the "project.godot" file using ProjectSettings::get_singleton()->save()
+			EditorNode::get_singleton()->show_warning(
+					TTRC("Failed to run the project because the project.godot file is missing."),
+					TTRC("Error!"));
+			return;
+		}
+	}
 
 	String write_movie_file;
 	if (is_movie_maker_enabled()) {

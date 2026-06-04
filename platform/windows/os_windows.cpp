@@ -202,7 +202,7 @@ bool OS_Windows::is_using_con_wrapper() const {
 	DWORD count = GetConsoleProcessList(&pids[0], 256);
 	for (DWORD i = 0; i < count; i++) {
 		HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pids[i]);
-		if (process != NULL) {
+		if (process != nullptr) {
 			WCHAR proc_name[MAX_PATH];
 			DWORD len = MAX_PATH;
 			if (QueryFullProcessImageNameW(process, 0, &proc_name[0], &len)) {
@@ -480,11 +480,10 @@ Error OS_Windows::open_dynamic_library(const String &p_path, void *&p_library_ha
 	if (!FileAccess::exists(path)) {
 		//this code exists so gdextension can load .dll files from within the executable path
 		path = get_executable_path().get_base_dir().path_join(p_path.get_file());
+		ERR_FAIL_COND_V(!FileAccess::exists(path), ERR_FILE_NOT_FOUND);
 	}
 	// Path to load from may be different from original if we make copies.
 	String load_path = path;
-
-	ERR_FAIL_COND_V(!FileAccess::exists(path), ERR_FILE_NOT_FOUND);
 
 	// Here we want a copy to be loaded.
 	// This is so the original file isn't locked and can be updated by a compiler.
@@ -2120,7 +2119,7 @@ PackedByteArray OS_Windows::get_stdin_buffer(int64_t p_buffer_size) {
 
 OS_Windows::StdHandleType OS_Windows::get_stdin_type() const {
 	HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
-	if (h == 0 || h == INVALID_HANDLE_VALUE) {
+	if (h == nullptr || h == INVALID_HANDLE_VALUE) {
 		return STD_HANDLE_INVALID;
 	}
 	DWORD ftype = GetFileType(h);
@@ -2151,7 +2150,7 @@ OS_Windows::StdHandleType OS_Windows::get_stdin_type() const {
 
 OS_Windows::StdHandleType OS_Windows::get_stdout_type() const {
 	HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (h == 0 || h == INVALID_HANDLE_VALUE) {
+	if (h == nullptr || h == INVALID_HANDLE_VALUE) {
 		return STD_HANDLE_INVALID;
 	}
 	DWORD ftype = GetFileType(h);
@@ -2177,7 +2176,7 @@ OS_Windows::StdHandleType OS_Windows::get_stdout_type() const {
 
 OS_Windows::StdHandleType OS_Windows::get_stderr_type() const {
 	HANDLE h = GetStdHandle(STD_ERROR_HANDLE);
-	if (h == 0 || h == INVALID_HANDLE_VALUE) {
+	if (h == nullptr || h == INVALID_HANDLE_VALUE) {
 		return STD_HANDLE_INVALID;
 	}
 	DWORD ftype = GetFileType(h);
@@ -2508,6 +2507,19 @@ String OS_Windows::get_system_dir(SystemDir p_dir, bool p_shared_storage) const 
 
 String OS_Windows::get_user_data_dir(const String &p_user_dir) const {
 	return get_data_path().path_join(p_user_dir).replace_char('\\', '/');
+}
+
+String OS_Windows::expand_path(const String &p_path) const {
+	String path = p_path;
+
+	if (path.begins_with("~/") || path.begins_with("~\\") || path == "~") {
+		String home = get_environment("USERPROFILE");
+		if (!home.is_empty()) {
+			path = home + path.substr(1);
+		}
+	}
+
+	return path;
 }
 
 String OS_Windows::get_unique_id() const {

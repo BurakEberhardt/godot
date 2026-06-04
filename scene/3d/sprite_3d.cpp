@@ -1278,15 +1278,21 @@ void AnimatedSprite3D::_notification(int p_what) {
 					// Forwards.
 					if (frame_progress >= 1.0) {
 						if (frame >= last_frame) {
-							if (frames->get_animation_loop(animation)) {
-								frame = 0;
-								emit_signal("animation_looped");
-							} else {
+							SpriteFrames::LoopMode loop = frames->get_animation_loop_mode(animation);
+							if (loop == SpriteFrames::LOOP_NONE) {
 								frame = last_frame;
 								pause();
 								emit_signal(SceneStringName(animation_finished));
 								return;
 							}
+
+							if (loop == SpriteFrames::LOOP_PINGPONG) {
+								frame = last_frame;
+								custom_speed_scale *= -1;
+							} else {
+								frame = 0;
+							}
+							emit_signal("animation_looped");
 						} else {
 							frame++;
 						}
@@ -1302,15 +1308,21 @@ void AnimatedSprite3D::_notification(int p_what) {
 					// Backwards.
 					if (frame_progress <= 0) {
 						if (frame <= 0) {
-							if (frames->get_animation_loop(animation)) {
-								frame = last_frame;
-								emit_signal("animation_looped");
-							} else {
+							SpriteFrames::LoopMode loop = frames->get_animation_loop_mode(animation);
+							if (loop == SpriteFrames::LOOP_NONE) {
 								frame = 0;
 								pause();
 								emit_signal(SceneStringName(animation_finished));
 								return;
 							}
+
+							if (loop == SpriteFrames::LOOP_PINGPONG) {
+								frame = 0;
+								custom_speed_scale *= -1;
+							} else {
+								frame = last_frame;
+							}
+							emit_signal("animation_looped");
 						} else {
 							frame--;
 						}
@@ -1341,7 +1353,6 @@ void AnimatedSprite3D::set_sprite_frames(const Ref<SpriteFrames> &p_frames) {
 	if (frames.is_valid()) {
 		frames->disconnect(CoreStringName(changed), callable_mp(this, &AnimatedSprite3D::_res_changed));
 	}
-	stop();
 	frames = p_frames;
 	if (frames.is_valid()) {
 		frames->connect(CoreStringName(changed), callable_mp(this, &AnimatedSprite3D::_res_changed));
@@ -1360,6 +1371,7 @@ void AnimatedSprite3D::set_sprite_frames(const Ref<SpriteFrames> &p_frames) {
 			}
 		}
 	}
+	stop();
 
 	notify_property_list_changed();
 	_queue_redraw();

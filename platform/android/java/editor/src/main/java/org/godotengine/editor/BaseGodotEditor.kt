@@ -279,9 +279,9 @@ abstract class BaseGodotEditor : GodotActivity(), GameMenuFragment.GameMenuListe
 	override fun onConfigurationChanged(newConfig: Configuration) {
 		super.onConfigurationChanged(newConfig)
 
-		// Show EditorTitleBar only in landscape due to width limitations in portrait.
+		// Show EditorTitleBar on small screens only in landscape due to width limitations in portrait.
 		// TODO: Enable for portrait once the title bar width is optimized.
-		EditorUtils.toggleTitleBar(newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
+		EditorUtils.toggleTitleBar(isLargeScreen || newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE)
 	}
 
 	override fun onDestroy() {
