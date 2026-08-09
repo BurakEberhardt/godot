@@ -8,6 +8,17 @@ setlocal
 for /f "delims=" %%V in ('python -c "import version; print(f\"{version.major}.{version.minor}.{version.status}.mono\")"') do set GODOT_VERSION=%%V
 set TEMPLATE_DIR=%APPDATA%\Godot\export_templates\%GODOT_VERSION%
 
+for /f "delims=" %%V in ('python -c "import version; print(f\"{version.major}.{version.minor}.{version.patch}-{version.status}\")"') do set NUGET_VERSION=%%V
+set NUGET_GODOTSHARP_DIR=%USERPROFILE%\.nuget\packages\godotsharp\%NUGET_VERSION%
+
+:: -------------------------
+:: Delete NuGet cache for GodotSharp to ensure we get the latest version of the assemblies
+:: -------------------------
+if exist "%NUGET_GODOTSHARP_DIR%" (
+    echo === Clearing GodotSharp NuGet cache ===
+    rmdir /S /Q "%NUGET_GODOTSHARP_DIR%"
+)
+
 :: -------------------------
 :: Build the editor
 :: -------------------------
