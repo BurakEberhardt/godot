@@ -313,14 +313,14 @@ bool ResourceImporterScene::get_option_visibility(const String &p_path, const St
 			return false;
 		}
 		if (p_option.begins_with("nodes/")) {
-			return p_option == "nodes/root_scale";
+			return p_option == "nodes/root_scale" || p_option == "nodes/root_scale_3d";
 		}
 	} else if (_scene_import_type == "ArrayMesh") {
 		if (p_option.begins_with("animation/") || p_option.begins_with("skins/") || p_option.begins_with("import_script/")) {
 			return false;
 		}
 		if (p_option.begins_with("nodes/")) {
-			return p_option == "nodes/root_scale";
+			return p_option == "nodes/root_scale" || p_option == "nodes/root_scale_3d";
 		}
 	}
 
@@ -1444,7 +1444,7 @@ Node *ResourceImporterScene::_replace_node_with_type_and_script(Node *p_node, St
 	return p_node;
 }
 
-Node *ResourceImporterScene::_post_fix_node(Node *p_node, Node *p_root, HashMap<Ref<ImporterMesh>, Vector<Ref<Shape3D>>> &collision_map, Pair<PackedVector3Array, PackedInt32Array> &r_occluder_arrays, HashSet<Ref<ImporterMesh>> &r_scanned_meshes, const Dictionary &p_node_data, const Dictionary &p_material_data, const Dictionary &p_animation_data, float p_animation_fps, float p_applied_root_scale, const String &p_source_file, const HashMap<StringName, Variant> &p_options) {
+Node *ResourceImporterScene::_post_fix_node(Node *p_node, Node *p_root, HashMap<Ref<ImporterMesh>, Vector<Ref<Shape3D>>> &collision_map, Pair<PackedVector3Array, PackedInt32Array> &r_occluder_arrays, HashSet<Ref<ImporterMesh>> &r_scanned_meshes, const Dictionary &p_node_data, const Dictionary &p_material_data, const Dictionary &p_animation_data, float p_animation_fps, Vector3 p_applied_root_scale, const String &p_source_file, const HashMap<StringName, Variant> &p_options) {
 	// children first
 	for (int i = 0; i < p_node->get_child_count(); i++) {
 		Node *r = _post_fix_node(p_node->get_child(i), p_root, collision_map, r_occluder_arrays, r_scanned_meshes, p_node_data, p_material_data, p_animation_data, p_animation_fps, p_applied_root_scale, p_source_file, p_options);
@@ -2614,6 +2614,7 @@ void ResourceImporterScene::get_import_options(const String &p_path, List<Import
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "array_mesh/deduplicate_surfaces"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "nodes/apply_root_scale"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::FLOAT, "nodes/root_scale", PROPERTY_HINT_RANGE, "0.001,1000,0.001"), 1.0));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::VECTOR3,"nodes/root_scale_3d"),Vector3(1.0, 1.0, 1.0)));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "nodes/import_as_skeleton_bones"), false));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "nodes/use_name_suffixes", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "nodes/use_node_type_suffixes"), true));
@@ -3255,13 +3256,21 @@ Error ResourceImporterScene::import(ResourceUID::ID p_source_id, const String &p
 			apply_root = true;
 		}
 	}
+
 	real_t root_scale = 1;
 	if (p_options.has("nodes/root_scale")) {
 		root_scale = p_options["nodes/root_scale"];
 	}
+
+	Vector3 root_scale_3d(1.0, 1.0, 1.0);
+	if (p_options.has("nodes/root_scale_3d")) {
+		root_scale_3d = p_options["nodes/root_scale_3d"];
+	}
+
+	Vector3 scale = root_scale_3d * root_scale;
+
 	if (Object::cast_to<Node3D>(scene)) {
 		Node3D *scene_3d = Object::cast_to<Node3D>(scene);
-		Vector3 scale = Vector3(root_scale, root_scale, root_scale);
 		if (apply_root) {
 			_apply_permanent_scale_to_descendants(scene, scale);
 		} else {
@@ -3309,7 +3318,7 @@ Error ResourceImporterScene::import(ResourceUID::ID p_source_id, const String &p
 	}
 	bool remove_immutable_tracks = p_options.has("animation/remove_immutable_tracks") ? (bool)p_options["animation/remove_immutable_tracks"] : true;
 	_pre_fix_animations(scene, scene, node_data, animation_data, fps);
-	_post_fix_node(scene, scene, collision_map, occluder_arrays, scanned_meshes, node_data, material_data, animation_data, fps, apply_root ? root_scale : 1.0, p_source_file, p_options);
+	_post_fix_node(scene, scene, collision_map, occluder_arrays, scanned_meshes, node_data, material_data, animation_data, fps, apply_root ? scale : Vector3(1.0, 1.0, 1.0), p_source_file, p_options);
 	_post_fix_animations(scene, scene, node_data, animation_data, fps, remove_immutable_tracks);
 
 	String root_type = p_options["nodes/root_type"];
