@@ -274,6 +274,8 @@ ShaderTypes::ShaderTypes() {
 	shader_modes[RSE::SHADER_SPATIAL].functions["compose"].built_ins["METALLIC"] = constt(ShaderLanguage::TYPE_FLOAT);
 	shader_modes[RSE::SHADER_SPATIAL].functions["compose"].built_ins["ROUGHNESS"] = constt(ShaderLanguage::TYPE_FLOAT);
 
+	shader_modes[RSE::SHADER_SPATIAL].functions["compose"].built_ins["CAMERA_VISIBLE_LAYERS"] = constt(ShaderLanguage::TYPE_UINT);
+
 	shader_modes[RSE::SHADER_SPATIAL].functions["compose"].can_discard = true;
 	shader_modes[RSE::SHADER_SPATIAL].functions["compose"].main_function = true;
 
