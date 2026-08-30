@@ -1385,6 +1385,7 @@ MaterialStorage::MaterialStorage() {
 		actions.usage_defines["AO"] = "#define AO_USED\n";
 		actions.usage_defines["AO_LIGHT_AFFECT"] = "#define AO_USED\n";
 		actions.usage_defines["UV"] = "#define UV_USED\n";
+		actions.usage_defines["STREAMING_UV"] = "#define STREAMING_UV_USED\n";
 		actions.usage_defines["UV2"] = "#define UV2_USED\n";
 		actions.usage_defines["BONE_INDICES"] = "#define BONES_USED\n";
 		actions.usage_defines["BONE_WEIGHTS"] = "#define WEIGHTS_USED\n";
@@ -2262,9 +2263,7 @@ void MaterialStorage::shader_free(RID p_rid) {
 	}
 
 	//clear data if exists
-	if (shader->data) {
-		memdelete(shader->data);
-	}
+	memdelete(shader->data);
 	shader_owner.free(p_rid);
 }
 
@@ -3008,6 +3007,7 @@ void SceneShaderData::set_code(const String &p_code) {
 	writes_modelview_or_projection = false;
 	uses_world_coordinates = false;
 	uses_tangent = false;
+	writes_tangent = false;
 	uses_color = false;
 	uses_uv = false;
 	uses_uv2 = false;
@@ -3093,6 +3093,8 @@ void SceneShaderData::set_code(const String &p_code) {
 	actions.write_flag_pointers["PROJECTION_MATRIX"] = &writes_modelview_or_projection;
 	actions.write_flag_pointers["VERTEX"] = &uses_vertex;
 	actions.write_flag_pointers["POSITION"] = &uses_position;
+	actions.write_flag_pointers["TANGENT"] = &writes_tangent;
+	actions.write_flag_pointers["BINORMAL"] = &writes_tangent;
 
 	actions.usage_flag_pointers["TANGENT"] = &uses_tangent;
 	actions.usage_flag_pointers["BINORMAL"] = &uses_tangent;
@@ -3415,6 +3417,7 @@ void TexBlitShaderData::set_code(const String &p_code) {
 	actions.render_mode_values["blend_sub"] = Pair<int *, int>(&blend_modei, BLEND_MODE_SUB);
 	actions.render_mode_values["blend_mul"] = Pair<int *, int>(&blend_modei, BLEND_MODE_MUL);
 	actions.render_mode_values["blend_disabled"] = Pair<int *, int>(&blend_modei, BLEND_MODE_DISABLED);
+	actions.render_mode_values["blend_premul_alpha"] = Pair<int *, int>(&blend_modei, BLEND_MODE_PREMULTIPLIED_ALPHA);
 
 	actions.uniforms = &uniforms;
 	Error err = MaterialStorage::get_singleton()->shaders.compiler_tex_blit.compile(RSE::SHADER_TEXTURE_BLIT, code, &actions, path, gen_code);
