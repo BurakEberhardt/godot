@@ -83,6 +83,7 @@ private:
 	// String camera_group;
 
 	uint32_t layers = 0xfffff;
+	Vector4 extra_cull_margin = Vector4();
 
 	Ref<Environment> environment;
 	Ref<CameraAttributes> attributes;
@@ -185,6 +186,9 @@ public:
 
 	void set_cull_mask_value(int p_layer_number, bool p_enable);
 	bool get_cull_mask_value(int p_layer_number) const;
+
+	void set_extra_cull_margin(Vector4 margin);
+	Vector4 get_extra_cull_margin() const;
 
 	virtual Vector<Plane> get_frustum() const;
 	bool is_position_in_frustum(const Vector3 &p_position) const;

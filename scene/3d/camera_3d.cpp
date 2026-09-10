@@ -787,6 +787,8 @@ void Camera3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_v_offset"), &Camera3D::get_v_offset);
 	ClassDB::bind_method(D_METHOD("set_cull_mask", "mask"), &Camera3D::set_cull_mask);
 	ClassDB::bind_method(D_METHOD("get_cull_mask"), &Camera3D::get_cull_mask);
+	ClassDB::bind_method(D_METHOD("set_extra_cull_margin", "mask"), &Camera3D::set_extra_cull_margin);
+	ClassDB::bind_method(D_METHOD("get_extra_cull_margin"), &Camera3D::get_extra_cull_margin);
 	ClassDB::bind_method(D_METHOD("set_environment", "env"), &Camera3D::set_environment);
 	ClassDB::bind_method(D_METHOD("get_environment"), &Camera3D::get_environment);
 	ClassDB::bind_method(D_METHOD("set_attributes", "env"), &Camera3D::set_attributes);
@@ -811,6 +813,7 @@ void Camera3D::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "keep_aspect", PROPERTY_HINT_ENUM, "Keep Width,Keep Height"), "set_keep_aspect_mode", "get_keep_aspect_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "cull_mask", PROPERTY_HINT_LAYERS_3D_RENDER), "set_cull_mask", "get_cull_mask");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR4, "extra_cull_margin", PROPERTY_HINT_NONE), "set_extra_cull_margin", "get_extra_cull_margin");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "environment", PROPERTY_HINT_RESOURCE_TYPE, Environment::get_class_static()), "set_environment", "get_environment");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "attributes", PROPERTY_HINT_RESOURCE_TYPE, "CameraAttributesPractical,CameraAttributesPhysical"), "set_attributes", "get_attributes");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "compositor", PROPERTY_HINT_RESOURCE_TYPE, Compositor::get_class_static()), "set_compositor", "get_compositor");
@@ -927,6 +930,16 @@ bool Camera3D::get_cull_mask_value(int p_layer_number) const {
 	return layers & (1 << (p_layer_number - 1));
 }
 
+void Camera3D::set_extra_cull_margin(Vector4 margin) {
+	extra_cull_margin = margin;
+	RenderingServer::get_singleton()->camera_set_extra_cull_margin(camera, margin);
+	_update_camera_mode();
+}
+
+Vector4 Camera3D::get_extra_cull_margin() const {
+	return extra_cull_margin;
+}
+
 Vector<Plane> Camera3D::get_frustum() const {
 	ERR_FAIL_COND_V(!is_inside_world(), Vector<Plane>());
 
@@ -1010,6 +1023,7 @@ Camera3D::Camera3D() {
 	camera = RenderingServer::get_singleton()->camera_create();
 	set_perspective(75.0, 0.05, 4000.0);
 	RenderingServer::get_singleton()->camera_set_cull_mask(camera, layers);
+	RenderingServer::get_singleton()->camera_set_extra_cull_margin(camera, extra_cull_margin);
 	//active=false;
 	velocity_tracker.instantiate();
 	set_notify_transform(true);

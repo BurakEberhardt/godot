@@ -136,6 +136,13 @@ void RendererSceneCull::camera_set_cull_mask(RID p_camera, uint32_t p_layers) {
 	camera->visible_layers = p_layers;
 }
 
+void RendererSceneCull::camera_set_extra_cull_margin(RID p_camera, Vector4 p_margin) {
+	Camera *camera = camera_owner.get_or_null(p_camera);
+	ERR_FAIL_NULL(camera);
+
+	camera->extra_cull_margin = p_margin;
+}
+
 void RendererSceneCull::camera_set_environment(RID p_camera, RID p_env) {
 	Camera *camera = camera_owner.get_or_null(p_camera);
 	ERR_FAIL_NULL(camera);
@@ -2748,7 +2755,7 @@ void RendererSceneCull::render_camera(const Ref<RenderSceneBuffers> &p_render_bu
 			} break;
 		}
 
-		camera_data.set_camera(transform, projection, is_orthogonal, vaspect, jitter, taa_frame_count, camera->visible_layers);
+		camera_data.set_camera(transform, projection, is_orthogonal, vaspect, jitter, taa_frame_count, camera->visible_layers, camera->extra_cull_margin);
 #ifndef XR_DISABLED
 	} else {
 		XRServer *xr_server = XRServer::get_singleton();
@@ -2781,9 +2788,9 @@ void RendererSceneCull::render_camera(const Ref<RenderSceneBuffers> &p_render_bu
 		}
 
 		if (view_count == 1) {
-			camera_data.set_camera(transforms[0], projections[0], false, camera->vaspect, jitter, p_jitter_phase_count, camera->visible_layers);
+			camera_data.set_camera(transforms[0], projections[0], false, camera->vaspect, jitter, p_jitter_phase_count, camera->visible_layers, camera->extra_cull_margin);
 		} else if (view_count == 2) {
-			camera_data.set_multiview_camera(view_count, transforms, projections, false, camera->vaspect, camera->visible_layers);
+			camera_data.set_multiview_camera(view_count, transforms, projections, false, camera->vaspect, camera->visible_layers, camera->extra_cull_margin);
 		} else {
 			// this won't be called (see fail check above) but keeping this comment to indicate we may support more then 2 views in the future...
 		}
@@ -3368,6 +3375,12 @@ void RendererSceneCull::_render_scene(const RendererSceneRender::CameraData *p_c
 	/* STEP 2 - CULL */
 
 	Vector<Plane> planes = p_camera_data->main_projection.get_projection_planes(p_camera_data->main_transform);
+	if (p_camera_data->extra_cull_margin != Vector4()) {
+		planes.write[2].d += p_camera_data->extra_cull_margin.x; // Left
+		planes.write[3].d += p_camera_data->extra_cull_margin.y; // Top
+		planes.write[4].d += p_camera_data->extra_cull_margin.z; // Right
+		planes.write[5].d += p_camera_data->extra_cull_margin.w; // Bottom
+	}
 	cull.frustum = Frustum(planes);
 
 	Vector<RID> directional_lights;

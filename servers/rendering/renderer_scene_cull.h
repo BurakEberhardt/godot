@@ -84,6 +84,7 @@ public:
 		float size;
 		Vector2 offset;
 		uint32_t visible_layers;
+		Vector4 extra_cull_margin;
 		bool vaspect;
 		RID env;
 		RID attributes;
@@ -94,6 +95,7 @@ public:
 
 		Camera() {
 			visible_layers = 0xFFFFFFFF;
+			extra_cull_margin = Vector4();
 			fov = 75;
 			type = PERSPECTIVE;
 			znear = 0.05;
@@ -115,6 +117,7 @@ public:
 	virtual void camera_set_custom(RID p_camera, Projection p_proj);
 	virtual void camera_set_transform(RID p_camera, const Transform3D &p_transform);
 	virtual void camera_set_cull_mask(RID p_camera, uint32_t p_layers);
+	virtual void camera_set_extra_cull_margin(RID p_camera, Vector4 p_margin);
 	virtual void camera_set_environment(RID p_camera, RID p_env);
 	virtual void camera_set_camera_attributes(RID p_camera, RID p_attributes);
 	virtual void camera_set_compositor(RID p_camera, RID p_compositor);
