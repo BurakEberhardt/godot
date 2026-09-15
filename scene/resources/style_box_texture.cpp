@@ -36,7 +36,7 @@
 float StyleBoxTexture::get_style_margin(Side p_side) const {
 	ERR_FAIL_INDEX_V((int)p_side, 4, 0.0);
 
-	return texture_margin[p_side];
+	return texture_margin[p_side] * texture_margin_scale;
 }
 
 void StyleBoxTexture::set_texture(Ref<Texture2D> p_texture) {
@@ -77,6 +77,15 @@ float StyleBoxTexture::get_texture_margin(Side p_side) const {
 	ERR_FAIL_INDEX_V((int)p_side, 4, 0.0);
 
 	return texture_margin[p_side];
+}
+
+void StyleBoxTexture::set_texture_margin_scale(float p_scale) {
+	texture_margin_scale = MAX(p_scale, 0.0f);
+	emit_changed();
+}
+
+float StyleBoxTexture::get_texture_margin_scale() const {
+	return texture_margin_scale;
 }
 
 void StyleBoxTexture::set_expand_margin(Side p_side, float p_size) {
@@ -159,6 +168,26 @@ Color StyleBoxTexture::get_modulate() const {
 	return modulate;
 }
 
+Size2 StyleBoxTexture::get_minimum_size() const {
+	Size2 min_size = Size2(
+			(get_content_margin(SIDE_LEFT) >= 0 ? get_content_margin(SIDE_LEFT) : texture_margin[SIDE_LEFT] * texture_margin_scale) +
+					(get_content_margin(SIDE_RIGHT) >= 0 ? get_content_margin(SIDE_RIGHT) : texture_margin[SIDE_RIGHT] * texture_margin_scale),
+			(get_content_margin(SIDE_TOP) >= 0 ? get_content_margin(SIDE_TOP) : texture_margin[SIDE_TOP] * texture_margin_scale) +
+					(get_content_margin(SIDE_BOTTOM) >= 0 ? get_content_margin(SIDE_BOTTOM) : texture_margin[SIDE_BOTTOM] * texture_margin_scale));
+
+	Size2 custom_size;
+	GDVIRTUAL_CALL(_get_minimum_size, custom_size);
+
+	if (min_size.x < custom_size.x) {
+		min_size.x = custom_size.x;
+	}
+	if (min_size.y < custom_size.y) {
+		min_size.y = custom_size.y;
+	}
+
+	return min_size;
+}
+
 Rect2 StyleBoxTexture::get_draw_rect(const Rect2 &p_rect) const {
 	return p_rect.grow_individual(expand_margin[SIDE_LEFT], expand_margin[SIDE_TOP], expand_margin[SIDE_RIGHT], expand_margin[SIDE_BOTTOM]);
 }
@@ -181,7 +210,7 @@ void StyleBoxTexture::draw(RID p_canvas_item, const Rect2 &p_rect) const {
 	Vector2 start_offset = Vector2(texture_margin[SIDE_LEFT], texture_margin[SIDE_TOP]);
 	Vector2 end_offset = Vector2(texture_margin[SIDE_RIGHT], texture_margin[SIDE_BOTTOM]);
 
-	RenderingServer::get_singleton()->canvas_item_add_nine_patch(p_canvas_item, rect, src_rect, texture->get_scaled_rid(), start_offset, end_offset, RSE::NinePatchAxisMode(axis_h), RSE::NinePatchAxisMode(axis_v), draw_center, modulate);
+	RenderingServer::get_singleton()->canvas_item_add_nine_patch(p_canvas_item, rect, src_rect, texture->get_scaled_rid(), start_offset, end_offset, texture_margin_scale, RSE::NinePatchAxisMode(axis_h), RSE::NinePatchAxisMode(axis_v), draw_center, modulate);
 }
 
 void StyleBoxTexture::_bind_methods() {
@@ -191,6 +220,9 @@ void StyleBoxTexture::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_texture_margin", "margin", "size"), &StyleBoxTexture::set_texture_margin);
 	ClassDB::bind_method(D_METHOD("set_texture_margin_all", "size"), &StyleBoxTexture::set_texture_margin_all);
 	ClassDB::bind_method(D_METHOD("get_texture_margin", "margin"), &StyleBoxTexture::get_texture_margin);
+
+	ClassDB::bind_method(D_METHOD("set_texture_margin_scale", "scale"), &StyleBoxTexture::set_texture_margin_scale);
+	ClassDB::bind_method(D_METHOD("get_texture_margin_scale"), &StyleBoxTexture::get_texture_margin_scale);
 
 	ClassDB::bind_method(D_METHOD("set_expand_margin", "margin", "size"), &StyleBoxTexture::set_expand_margin);
 	ClassDB::bind_method(D_METHOD("set_expand_margin_all", "size"), &StyleBoxTexture::set_expand_margin_all);
@@ -218,6 +250,9 @@ void StyleBoxTexture::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "texture_margin_top", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_texture_margin", "get_texture_margin", SIDE_TOP);
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "texture_margin_right", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_texture_margin", "get_texture_margin", SIDE_RIGHT);
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "texture_margin_bottom", PROPERTY_HINT_RANGE, "0,2048,1,suffix:px"), "set_texture_margin", "get_texture_margin", SIDE_BOTTOM);
+
+	ADD_GROUP("Texture Margin Scale", "texture_margin_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "texture_margin_scale"), "set_texture_margin_scale", "get_texture_margin_scale");
 
 	ADD_GROUP("Expand Margins", "expand_margin_");
 	ADD_PROPERTYI(PropertyInfo(Variant::FLOAT, "expand_margin_left", PROPERTY_HINT_RANGE, "-2048,2048,1,suffix:px"), "set_expand_margin", "get_expand_margin", SIDE_LEFT);

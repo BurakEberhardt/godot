@@ -1842,7 +1842,7 @@ RendererCanvasRenderRD::RendererCanvasRenderRD() {
 		actions.base_uniform_string = "material.";
 		actions.default_filter = ShaderLanguage::FILTER_LINEAR;
 		actions.default_repeat = ShaderLanguage::REPEAT_DISABLE;
-		actions.base_varying_index = 9;
+		actions.base_varying_index = 10;
 
 		actions.global_buffer_array_variable = "global_shader_uniforms.data";
 		actions.instance_uniform_index_variable = "read_draw_data_instance_offset";
@@ -2606,6 +2606,8 @@ void RendererCanvasRenderRD::_record_item_commands(const Item *p_item, RenderTar
 				instance_data->ninepatch_margins[1] = np->margin[SIDE_TOP];
 				instance_data->ninepatch_margins[2] = np->margin[SIDE_RIGHT];
 				instance_data->ninepatch_margins[3] = np->margin[SIDE_BOTTOM];
+
+				instance_data->ninepatch_margin_scale = np->margin_scale;
 
 				_add_to_batch(r_batch_broken, r_current_batch);
 			} break;

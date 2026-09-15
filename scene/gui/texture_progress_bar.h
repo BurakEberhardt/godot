@@ -85,6 +85,9 @@ public:
 	void set_stretch_margin(Side p_side, int p_size);
 	int get_stretch_margin(Side p_side) const;
 
+	void set_stretch_margin_scale(float p_scale);
+	float get_stretch_margin_scale() const;
+
 	void set_nine_patch_stretch(bool p_stretch);
 	bool get_nine_patch_stretch() const;
 
@@ -109,6 +112,7 @@ private:
 	Point2 rad_center_off;
 	bool nine_patch_stretch = false;
 	int stretch_margin[4] = {};
+	float stretch_margin_scale = 1.0f;
 	Color tint_under = Color(1, 1, 1);
 	Color tint_progress = Color(1, 1, 1);
 	Color tint_over = Color(1, 1, 1);

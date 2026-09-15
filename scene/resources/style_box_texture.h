@@ -46,6 +46,7 @@ public:
 private:
 	float expand_margin[4] = {};
 	float texture_margin[4] = {};
+	float texture_margin_scale = 1.0f;
 	Rect2 region_rect;
 	Ref<Texture2D> texture;
 	bool draw_center = true;
@@ -65,6 +66,9 @@ public:
 	void set_texture_margin_all(float p_size);
 	void set_texture_margin_individual(float p_left, float p_top, float p_right, float p_bottom);
 	float get_texture_margin(Side p_side) const;
+
+	void set_texture_margin_scale(float p_scale);
+	float get_texture_margin_scale() const;
 
 	void set_expand_margin(Side p_expand_side, float p_size);
 	void set_expand_margin_all(float p_expand_margin_size);
@@ -86,6 +90,7 @@ public:
 	void set_modulate(const Color &p_modulate);
 	Color get_modulate() const;
 
+	virtual Size2 get_minimum_size() const;
 	virtual Rect2 get_draw_rect(const Rect2 &p_rect) const override;
 	virtual void draw(RID p_canvas_item, const Rect2 &p_rect) const override;
 };

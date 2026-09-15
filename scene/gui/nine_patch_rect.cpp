@@ -47,13 +47,13 @@ void NinePatchRect::_notification(int p_what) {
 			texture->get_rect_region(rect, src_rect, rect, src_rect);
 
 			RID ci = get_canvas_item();
-			RS::get_singleton()->canvas_item_add_nine_patch(ci, rect, src_rect, texture->get_scaled_rid(), Vector2(margin[SIDE_LEFT], margin[SIDE_TOP]), Vector2(margin[SIDE_RIGHT], margin[SIDE_BOTTOM]), RSE::NinePatchAxisMode(axis_h), RSE::NinePatchAxisMode(axis_v), draw_center);
+			RS::get_singleton()->canvas_item_add_nine_patch(ci, rect, src_rect, texture->get_scaled_rid(), Vector2(margin[SIDE_LEFT], margin[SIDE_TOP]), Vector2(margin[SIDE_RIGHT], margin[SIDE_BOTTOM]), margin_scale, RSE::NinePatchAxisMode(axis_h), RSE::NinePatchAxisMode(axis_v), draw_center);
 		} break;
 	}
 }
 
 Size2 NinePatchRect::get_minimum_size() const {
-	return Size2(margin[SIDE_LEFT] + margin[SIDE_RIGHT], margin[SIDE_TOP] + margin[SIDE_BOTTOM]);
+	return Size2((margin[SIDE_LEFT] + margin[SIDE_RIGHT]) * margin_scale, (margin[SIDE_TOP] + margin[SIDE_BOTTOM]) * margin_scale);
 }
 
 void NinePatchRect::_bind_methods() {
@@ -61,6 +61,8 @@ void NinePatchRect::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_texture"), &NinePatchRect::get_texture);
 	ClassDB::bind_method(D_METHOD("set_patch_margin", "margin", "value"), &NinePatchRect::set_patch_margin);
 	ClassDB::bind_method(D_METHOD("get_patch_margin", "margin"), &NinePatchRect::get_patch_margin);
+	ClassDB::bind_method(D_METHOD("set_patch_margin_scale", "scale"), &NinePatchRect::set_patch_margin_scale);
+	ClassDB::bind_method(D_METHOD("get_patch_margin_scale"), &NinePatchRect::get_patch_margin_scale);
 	ClassDB::bind_method(D_METHOD("set_region_rect", "rect"), &NinePatchRect::set_region_rect);
 	ClassDB::bind_method(D_METHOD("get_region_rect"), &NinePatchRect::get_region_rect);
 	ClassDB::bind_method(D_METHOD("set_draw_center", "draw_center"), &NinePatchRect::set_draw_center);
@@ -81,6 +83,8 @@ void NinePatchRect::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::INT, "patch_margin_top", PROPERTY_HINT_RANGE, "0,16384,1,suffix:px"), "set_patch_margin", "get_patch_margin", SIDE_TOP);
 	ADD_PROPERTYI(PropertyInfo(Variant::INT, "patch_margin_right", PROPERTY_HINT_RANGE, "0,16384,1,suffix:px"), "set_patch_margin", "get_patch_margin", SIDE_RIGHT);
 	ADD_PROPERTYI(PropertyInfo(Variant::INT, "patch_margin_bottom", PROPERTY_HINT_RANGE, "0,16384,1,suffix:px"), "set_patch_margin", "get_patch_margin", SIDE_BOTTOM);
+	ADD_GROUP("Patch Margin Scale", "patch_margin_scale_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "patch_margin_scale"), "set_patch_margin_scale", "get_patch_margin_scale");
 	ADD_GROUP("Axis Stretch", "axis_stretch_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "axis_stretch_horizontal", PROPERTY_HINT_ENUM, "Stretch,Tile,Tile Fit"), "set_h_axis_stretch_mode", "get_h_axis_stretch_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "axis_stretch_vertical", PROPERTY_HINT_ENUM, "Stretch,Tile,Tile Fit"), "set_v_axis_stretch_mode", "get_v_axis_stretch_mode");
@@ -134,6 +138,20 @@ void NinePatchRect::set_patch_margin(Side p_side, int p_size) {
 int NinePatchRect::get_patch_margin(Side p_side) const {
 	ERR_FAIL_INDEX_V((int)p_side, 4, 0);
 	return margin[p_side];
+}
+
+void NinePatchRect::set_patch_margin_scale(float p_scale) {
+	if (margin_scale == p_scale) {
+		return;
+	}
+
+	margin_scale = MAX(p_scale, 0.0f);
+	queue_redraw();
+	update_minimum_size();
+}
+
+float NinePatchRect::get_patch_margin_scale() const {
+	return margin_scale;
 }
 
 void NinePatchRect::set_region_rect(const Rect2 &p_region_rect) {

@@ -896,6 +896,7 @@ void RasterizerCanvasGLES3::_record_item_commands(const Item *p_item, RID p_rend
 			state.instance_data_array[r_index].dst_rect[i] = 0.0;
 			state.instance_data_array[r_index].lights[i] = uint32_t(0);
 		}
+		state.instance_data_array[r_index].ninepatch_margin_scale = 0.0;
 		state.instance_data_array[r_index].color_texture_pixel_size[0] = 0.0;
 		state.instance_data_array[r_index].color_texture_pixel_size[1] = 0.0;
 
@@ -1081,6 +1082,8 @@ void RasterizerCanvasGLES3::_record_item_commands(const Item *p_item, RID p_rend
 				state.instance_data_array[r_index].ninepatch_margins[2] = np->margin[SIDE_RIGHT];
 				state.instance_data_array[r_index].ninepatch_margins[3] = np->margin[SIDE_BOTTOM];
 
+				state.instance_data_array[r_index].ninepatch_margin_scale = np->margin_scale;
+
 				_add_to_batch(r_index, r_batch_broken);
 
 				// Restore if overridden.
@@ -1113,6 +1116,7 @@ void RasterizerCanvasGLES3::_record_item_commands(const Item *p_item, RID p_rend
 					state.instance_data_array[r_index].dst_rect[j] = 0;
 					state.instance_data_array[r_index].ninepatch_margins[j] = 0;
 				}
+				state.instance_data_array[r_index].ninepatch_margin_scale = 0.0f;
 
 				_add_to_batch(r_index, r_batch_broken);
 			} break;
@@ -1246,6 +1250,8 @@ void RasterizerCanvasGLES3::_record_item_commands(const Item *p_item, RID p_rend
 					state.instance_data_array[r_index].dst_rect[j] = 0;
 					state.instance_data_array[r_index].ninepatch_margins[j] = 0;
 				}
+				state.instance_data_array[r_index].ninepatch_margin_scale = 0.0f;
+
 				_add_to_batch(r_index, r_batch_broken);
 			} break;
 

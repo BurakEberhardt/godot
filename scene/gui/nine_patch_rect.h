@@ -44,6 +44,7 @@ public:
 
 	bool draw_center = true;
 	int margin[4] = {};
+	float margin_scale = 1.0f;
 	Rect2 region_rect;
 	Ref<Texture2D> texture;
 
@@ -64,6 +65,9 @@ public:
 
 	void set_patch_margin(Side p_side, int p_size);
 	int get_patch_margin(Side p_side) const;
+
+	void set_patch_margin_scale(float p_scale);
+	float get_patch_margin_scale() const;
 
 	void set_region_rect(const Rect2 &p_region_rect);
 	Rect2 get_region_rect() const;

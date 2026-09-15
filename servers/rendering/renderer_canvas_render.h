@@ -219,6 +219,7 @@ public:
 			Rect2 rect;
 			Rect2 source;
 			float margin[4];
+			float margin_scale;
 			bool draw_center;
 			Color color;
 			RSE::NinePatchAxisMode axis_x;
@@ -228,6 +229,7 @@ public:
 
 			CommandNinePatch() {
 				draw_center = true;
+				margin_scale = 1.0f;
 				type = TYPE_NINEPATCH;
 			}
 		};

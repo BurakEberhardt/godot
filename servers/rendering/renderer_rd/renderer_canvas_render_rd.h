@@ -363,7 +363,8 @@ class RendererCanvasRenderRD : public RendererCanvasRender {
 				float ninepatch_margins[4];
 				float dst_rect[4];
 				float src_rect[4];
-				float pad[2];
+				float ninepatch_margin_scale;
+				float pad;
 			};
 			//primitive
 			struct {

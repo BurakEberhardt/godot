@@ -69,6 +69,20 @@ int TextureProgressBar::get_stretch_margin(Side p_side) const {
 	return stretch_margin[p_side];
 }
 
+void TextureProgressBar::set_stretch_margin_scale(float p_scale) {
+	if (stretch_margin_scale == p_scale) {
+		return;
+	}
+
+	stretch_margin_scale = p_scale;
+	queue_redraw();
+	update_minimum_size();
+}
+
+float TextureProgressBar::get_stretch_margin_scale() const {
+	return stretch_margin_scale;
+}
+
 void TextureProgressBar::set_nine_patch_stretch(bool p_stretch) {
 	if (nine_patch_stretch == p_stretch) {
 		return;
@@ -86,7 +100,7 @@ bool TextureProgressBar::get_nine_patch_stretch() const {
 
 Size2 TextureProgressBar::get_minimum_size() const {
 	if (nine_patch_stretch) {
-		return Size2(stretch_margin[SIDE_LEFT] + stretch_margin[SIDE_RIGHT], stretch_margin[SIDE_TOP] + stretch_margin[SIDE_BOTTOM]);
+		return Size2((stretch_margin[SIDE_LEFT] + stretch_margin[SIDE_RIGHT]) * stretch_margin_scale, (stretch_margin[SIDE_TOP] + stretch_margin[SIDE_BOTTOM]) * stretch_margin_scale);
 	}
 
 	Size2 size = Size2(1, 1);
@@ -430,7 +444,7 @@ void TextureProgressBar::draw_nine_patch_stretched(const Ref<Texture2D> &p_textu
 	p_texture->get_rect_region(dst_rect, src_rect, dst_rect, src_rect);
 
 	RID ci = get_canvas_item();
-	RS::get_singleton()->canvas_item_add_nine_patch(ci, dst_rect, src_rect, p_texture->get_scaled_rid(), topleft, bottomright, RSE::NINE_PATCH_STRETCH, RSE::NINE_PATCH_STRETCH, true, p_modulate);
+	RS::get_singleton()->canvas_item_add_nine_patch(ci, dst_rect, src_rect, p_texture->get_scaled_rid(), topleft, bottomright, stretch_margin_scale, RSE::NINE_PATCH_STRETCH, RSE::NINE_PATCH_STRETCH, true, p_modulate);
 }
 
 void TextureProgressBar::_notification(int p_what) {
@@ -689,6 +703,9 @@ void TextureProgressBar::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_stretch_margin", "margin", "value"), &TextureProgressBar::set_stretch_margin);
 	ClassDB::bind_method(D_METHOD("get_stretch_margin", "margin"), &TextureProgressBar::get_stretch_margin);
 
+	ClassDB::bind_method(D_METHOD("set_stretch_margin_scale", "scale"), &TextureProgressBar::set_stretch_margin_scale);
+	ClassDB::bind_method(D_METHOD("get_stretch_margin_scale"), &TextureProgressBar::get_stretch_margin_scale);
+
 	ClassDB::bind_method(D_METHOD("set_nine_patch_stretch", "stretch"), &TextureProgressBar::set_nine_patch_stretch);
 	ClassDB::bind_method(D_METHOD("get_nine_patch_stretch"), &TextureProgressBar::get_nine_patch_stretch);
 
@@ -705,6 +722,9 @@ void TextureProgressBar::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_top", PROPERTY_HINT_RANGE, "0,16384,1,suffix:px"), "set_stretch_margin", "get_stretch_margin", SIDE_TOP);
 	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_right", PROPERTY_HINT_RANGE, "0,16384,1,suffix:px"), "set_stretch_margin", "get_stretch_margin", SIDE_RIGHT);
 	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_bottom", PROPERTY_HINT_RANGE, "0,16384,1,suffix:px"), "set_stretch_margin", "get_stretch_margin", SIDE_BOTTOM);
+
+	ADD_GROUP("Stretch Margin Scale", "stretch_margin_scale_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stretch_margin_scale"), "set_stretch_margin_scale", "get_stretch_margin_scale");
 
 	ADD_GROUP("Textures", "texture_");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "texture_under", PROPERTY_HINT_RESOURCE_TYPE, Texture2D::get_class_static()), "set_under_texture", "get_under_texture");

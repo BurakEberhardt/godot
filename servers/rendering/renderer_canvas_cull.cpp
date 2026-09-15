@@ -1705,7 +1705,7 @@ void RendererCanvasCull::canvas_item_add_texture_rect_region(RID p_item, const R
 	}
 }
 
-void RendererCanvasCull::canvas_item_add_nine_patch(RID p_item, const Rect2 &p_rect, const Rect2 &p_source, RID p_texture, const Vector2 &p_topleft, const Vector2 &p_bottomright, RSE::NinePatchAxisMode p_x_axis_mode, RSE::NinePatchAxisMode p_y_axis_mode, bool p_draw_center, const Color &p_modulate) {
+void RendererCanvasCull::canvas_item_add_nine_patch(RID p_item, const Rect2 &p_rect, const Rect2 &p_source, RID p_texture, const Vector2 &p_topleft, const Vector2 &p_bottomright, float p_margin_scale, RSE::NinePatchAxisMode p_x_axis_mode, RSE::NinePatchAxisMode p_y_axis_mode, bool p_draw_center, const Color &p_modulate) {
 	Item *canvas_item = canvas_item_owner.get_or_null(p_item);
 	ERR_FAIL_NULL(canvas_item);
 
@@ -1722,6 +1722,7 @@ void RendererCanvasCull::canvas_item_add_nine_patch(RID p_item, const Rect2 &p_r
 	style->margin[SIDE_TOP] = p_topleft.y;
 	style->margin[SIDE_RIGHT] = p_bottomright.x;
 	style->margin[SIDE_BOTTOM] = p_bottomright.y;
+	style->margin_scale = p_margin_scale;
 	style->axis_x = p_x_axis_mode;
 	style->axis_y = p_y_axis_mode;
 }

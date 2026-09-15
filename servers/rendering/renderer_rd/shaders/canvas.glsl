@@ -38,6 +38,7 @@ layout(location = 5) out flat vec4 varying_D;
 layout(location = 6) out flat vec4 varying_E;
 layout(location = 7) out flat vec4 varying_F;
 layout(location = 8) out vec2 pixel_size_interp;
+layout(location = 9) out flat float varying_G_scale;
 #endif // USE_NINEPATCH
 #endif // !USE_ATTRIBUTES
 
@@ -93,6 +94,7 @@ layout(location = 15) in uvec4 attrib_H;
 #define read_draw_data_ninepatch_pixel_size (attrib_B.zw)
 #define read_draw_data_modulation attrib_C
 #define read_draw_data_ninepatch_margins attrib_D
+#define read_draw_data_ninepatch_margin_scale uintBitsToFloat(attrib_G.x)
 #define read_draw_data_dst_rect attrib_E
 #define read_draw_data_src_rect attrib_F
 
@@ -133,6 +135,7 @@ void main() {
 	varying_D = read_draw_data_ninepatch_margins;
 	varying_E = vec4(read_draw_data_dst_rect.z, read_draw_data_dst_rect.w, read_draw_data_ninepatch_pixel_size.x, read_draw_data_ninepatch_pixel_size.y);
 	varying_F = read_draw_data_src_rect;
+    varying_G_scale = read_draw_data_ninepatch_margin_scale;
 #endif // USE_NINEPATCH
 #endif // !USE_ATTRIBUTES
 
@@ -343,11 +346,13 @@ layout(location = 5) in flat vec4 varying_D;
 layout(location = 6) in flat vec4 varying_E;
 layout(location = 7) in flat vec4 varying_F;
 layout(location = 8) in vec2 pixel_size_interp;
+layout(location = 9) in flat float varying_G_scale;
 #define read_draw_data_ninepatch_margins varying_D
 #define read_draw_data_dst_rect_z varying_E.x
 #define read_draw_data_dst_rect_w varying_E.y
 #define read_draw_data_ninepatch_pixel_size (varying_E.zw)
 #define read_draw_data_src_rect_ninepatch (varying_F);
+#define read_draw_data_ninepatch_margin_scale varying_G_scale
 
 #endif // USE_NINEPATCH
 
@@ -432,41 +437,36 @@ vec4 light_compute(
 
 #ifdef USE_NINEPATCH
 
-float map_ninepatch_axis(float pixel, float draw_size, float tex_pixel_size, float margin_begin, float margin_end, int np_repeat, inout int draw_center) {
-	float tex_size = 1.0 / tex_pixel_size;
+float map_ninepatch_axis(float pixel, float draw_size, float tex_pixel_size, float margin_begin, float margin_end, float margin_scale, int np_repeat, inout int draw_center) {
+    float tex_size = 1.0 / tex_pixel_size;
 
-	if (pixel < margin_begin) {
-		return pixel * tex_pixel_size;
-	} else if (pixel >= draw_size - margin_end) {
-		return (tex_size - (draw_size - pixel)) * tex_pixel_size;
-	} else {
-		draw_center -= 1 - int(bitfieldExtract(read_draw_data_flags, INSTANCE_FLAGS_NINEPATCH_DRAW_CENTER_SHIFT, 1));
+    float margin_begin_px = margin_begin * margin_scale;
+    float margin_end_px = margin_end * margin_scale;
 
-		// np_repeat is passed as uniform using NinePatchRect::AxisStretchMode enum.
-		if (np_repeat == 0) { // Stretch.
-			// Convert to ratio.
-			float ratio = (pixel - margin_begin) / (draw_size - margin_begin - margin_end);
-			// Scale to source texture.
-			return (margin_begin + ratio * (tex_size - margin_begin - margin_end)) * tex_pixel_size;
-		} else if (np_repeat == 1) { // Tile.
-			// Convert to offset.
-			float ofs = mod((pixel - margin_begin), tex_size - margin_begin - margin_end);
-			// Scale to source texture.
-			return (margin_begin + ofs) * tex_pixel_size;
-		} else if (np_repeat == 2) { // Tile Fit.
-			// Calculate scale.
-			float src_area = draw_size - margin_begin - margin_end;
-			float dst_area = tex_size - margin_begin - margin_end;
-			float scale = max(1.0, floor(src_area / max(dst_area, 0.0000001) + 0.5));
-			// Convert to ratio.
-			float ratio = (pixel - margin_begin) / src_area;
-			ratio = mod(ratio * scale, 1.0);
-			// Scale to source texture.
-			return (margin_begin + ratio * dst_area) * tex_pixel_size;
-		} else { // Shouldn't happen, but silences compiler warning.
-			return 0.0;
-		}
-	}
+    if (pixel < margin_begin_px) {
+       return (pixel / margin_scale) * tex_pixel_size;
+    } else if (pixel >= draw_size - margin_end_px) {
+       return (tex_size - (draw_size - pixel) / margin_scale) * tex_pixel_size;
+    } else {
+       draw_center -= 1 - int(bitfieldExtract(read_draw_data_flags, INSTANCE_FLAGS_NINEPATCH_DRAW_CENTER_SHIFT, 1));
+
+       if (np_repeat == 0) { // Stretch.
+          float ratio = (pixel - margin_begin_px) / (draw_size - margin_begin_px - margin_end_px);
+          return (margin_begin + ratio * (tex_size - margin_begin - margin_end)) * tex_pixel_size;
+       } else if (np_repeat == 1) { // Tile.
+          float ofs = mod((pixel - margin_begin_px) / margin_scale, tex_size - margin_begin - margin_end);
+          return (margin_begin + ofs) * tex_pixel_size;
+       } else if (np_repeat == 2) { // Tile Fit.
+          float src_area = draw_size - margin_begin_px - margin_end_px;
+          float dst_area = tex_size - margin_begin - margin_end;
+          float scale = max(1.0, floor(src_area / max(dst_area, 0.0000001) + 0.5));
+          float ratio = (pixel - margin_begin_px) / src_area;
+          ratio = mod(ratio * scale, 1.0);
+          return (margin_begin + ratio * dst_area) * tex_pixel_size;
+       } else {
+          return 0.0;
+       }
+    }
 }
 
 #endif
@@ -584,8 +584,8 @@ void main() {
 
 	int draw_center = 2;
 	uv = vec2(
-			map_ninepatch_axis(pixel_size_interp.x, abs(read_draw_data_dst_rect_z), read_draw_data_ninepatch_pixel_size.x, read_draw_data_ninepatch_margins.x, read_draw_data_ninepatch_margins.z, int(bitfieldExtract(read_draw_data_flags, INSTANCE_FLAGS_NINEPATCH_H_MODE_SHIFT, 2)), draw_center),
-			map_ninepatch_axis(pixel_size_interp.y, abs(read_draw_data_dst_rect_w), read_draw_data_ninepatch_pixel_size.y, read_draw_data_ninepatch_margins.y, read_draw_data_ninepatch_margins.w, int(bitfieldExtract(read_draw_data_flags, INSTANCE_FLAGS_NINEPATCH_V_MODE_SHIFT, 2)), draw_center));
+			map_ninepatch_axis(pixel_size_interp.x, abs(read_draw_data_dst_rect_z), read_draw_data_ninepatch_pixel_size.x, read_draw_data_ninepatch_margins.x, read_draw_data_ninepatch_margins.z, read_draw_data_ninepatch_margin_scale, int(bitfieldExtract(read_draw_data_flags, INSTANCE_FLAGS_NINEPATCH_H_MODE_SHIFT, 2)), draw_center),
+			map_ninepatch_axis(pixel_size_interp.y, abs(read_draw_data_dst_rect_w), read_draw_data_ninepatch_pixel_size.y, read_draw_data_ninepatch_margins.y, read_draw_data_ninepatch_margins.w, read_draw_data_ninepatch_margin_scale, int(bitfieldExtract(read_draw_data_flags, INSTANCE_FLAGS_NINEPATCH_V_MODE_SHIFT, 2)), draw_center));
 
 	if (draw_center == 0) {
 		color.a = 0.0;
