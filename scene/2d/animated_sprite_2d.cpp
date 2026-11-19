@@ -40,12 +40,14 @@
 Dictionary AnimatedSprite2D::_edit_get_state() const {
 	Dictionary state = Node2D::_edit_get_state();
 	state["offset"] = offset;
+	state["relative_offset"] = relative_offset;
 	return state;
 }
 
 void AnimatedSprite2D::_edit_set_state(const Dictionary &p_state) {
 	Node2D::_edit_set_state(p_state);
 	set_offset(p_state["offset"]);
+	set_relative_offset(p_state["relative_offset"]);
 }
 
 void AnimatedSprite2D::_edit_set_pivot(const Point2 &p_pivot) {
@@ -103,6 +105,8 @@ Rect2 AnimatedSprite2D::_get_rect() const {
 	Size2 s = t->get_size();
 
 	Point2 ofs = offset;
+	ofs += relative_offset * s;
+
 	if (centered) {
 		ofs -= s / 2;
 	}
@@ -298,6 +302,8 @@ void AnimatedSprite2D::_notification(int p_what) {
 
 			Size2 s = texture->get_size();
 			Point2 ofs = offset;
+			ofs += relative_offset * s;
+
 			if (centered) {
 				ofs -= s / 2;
 			}
@@ -442,6 +448,20 @@ void AnimatedSprite2D::set_offset(const Point2 &p_offset) {
 
 Point2 AnimatedSprite2D::get_offset() const {
 	return offset;
+}
+
+void AnimatedSprite2D::set_relative_offset(const Point2 &p_offset) {
+	if (relative_offset == p_offset) {
+		return;
+	}
+
+	relative_offset = p_offset;
+	queue_redraw();
+	item_rect_changed();
+}
+
+Point2 AnimatedSprite2D::get_relative_offset() const {
+	return relative_offset;
 }
 
 void AnimatedSprite2D::set_flip_h(bool p_flip) {
@@ -662,6 +682,9 @@ void AnimatedSprite2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_offset", "offset"), &AnimatedSprite2D::set_offset);
 	ClassDB::bind_method(D_METHOD("get_offset"), &AnimatedSprite2D::get_offset);
 
+	ClassDB::bind_method(D_METHOD("set_relative_offset", "offset"), &AnimatedSprite2D::set_relative_offset);
+	ClassDB::bind_method(D_METHOD("get_relative_offset"), &AnimatedSprite2D::get_relative_offset);
+
 	ClassDB::bind_method(D_METHOD("set_flip_h", "flip_h"), &AnimatedSprite2D::set_flip_h);
 	ClassDB::bind_method(D_METHOD("is_flipped_h"), &AnimatedSprite2D::is_flipped_h);
 
@@ -695,6 +718,7 @@ void AnimatedSprite2D::_bind_methods() {
 	ADD_GROUP("Offset", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "centered"), "set_centered", "is_centered");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "offset", PROPERTY_HINT_NONE, "suffix:px"), "set_offset", "get_offset");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "relative_offset", PROPERTY_HINT_NONE), "set_relative_offset", "get_relative_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "flip_h"), "set_flip_h", "is_flipped_h");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "flip_v"), "set_flip_v", "is_flipped_v");
 }
